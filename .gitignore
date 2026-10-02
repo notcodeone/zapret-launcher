@@ -1,0 +1,115 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+Thumbs.db
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code
+# Keep shared launch/settings if you want; ignore the rest
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# FVM
+.fvm/flutter_sdk
+
+# Symbolication / obfuscation
+app.*.symbols
+app.*.map.json
+
+# Android
+/android/app/debug
+/android/app/profile
+/android/app/release
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+*.jks
+*.keystore
+
+# iOS / macOS
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/*sync/
+**/ios/**/.sconsign.dblite
+**/ios/**/.tags*
+**/ios/**/.vagrant/
+**/ios/**/DerivedData/
+**/ios/**/Icon?
+**/ios/**/Pods/
+**/ios/**/.symlinks/
+**/ios/**/profile
+**/ios/**/xcuserdata
+**/ios/.generated/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/macos/Pods/
+
+# Windows / Linux desktop
+**/windows/flutter/ephemeral/
+**/windows/flutter/generated_plugin_registrant.*
+**/windows/flutter/generated_plugins.cmake
+**/linux/flutter/ephemeral/
+**/linux/flutter/generated_plugin_registrant.*
+**/linux/flutter/generated_plugins.cmake
+
+# Web
+lib/generated_plugin_registrant.dart
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Локальные заметки и настройки инструментов разработки — не в репозиторий
+.claude/
+CLAUDE.md
+
+# Установщик
+/dist/
