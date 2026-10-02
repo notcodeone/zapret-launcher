@@ -1,6 +1,6 @@
 # ZapretLauncher
 
-[![CI](https://github.com/notcodeone/zapret-launcher/actions/workflows/ci.yml/badge.svg)](https://github.com/notcodeone/zapret-launcher/actions/workflows/ci.yml)
+[![Сборка](https://github.com/notcodeone/zapret-launcher/actions/workflows/build.yml/badge.svg)](https://github.com/notcodeone/zapret-launcher/actions/workflows/build.yml)
 [![Релиз](https://img.shields.io/github/v/release/notcodeone/zapret-launcher?label=релиз)](https://github.com/notcodeone/zapret-launcher/releases/latest)
 
 Лаунчер для [zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) под Windows.
@@ -16,6 +16,7 @@
 - [Какие запросы делает лаунчер](#какие-запросы-делает-лаунчер)
 - [Частые вопросы](#частые-вопросы)
 - [Сборка из исходников](#сборка-из-исходников)
+- [Версии](#версии)
 
 ## Возможности
 
@@ -70,6 +71,9 @@
 4. Нажмите «Включить». Если сайты не открываются — «Стратегии» → «Подобрать автоматически».
 
 Нужна Windows 10 версии 1809 или новее, 64-битная.
+
+Есть и переносная версия — `ZapretLauncher-*-windows-portable.zip`: распакуйте папку целиком и запустите
+`ZapretLauncher.exe` от имени администратора.
 
 **Удаление** — через «Приложения» Windows. Удаление спросит, убрать ли заодно zapret, его службу
 и настройки; если zapret нужен и без лаунчера — откажитесь.
@@ -150,13 +154,6 @@ powershell -ExecutionPolicy Bypass -File tool\build_installer.ps1
 Плагины Flutter не используются: окно и значок в трее сделаны в `windows\runner`, вызовы Windows —
 через `dart:ffi` (`lib\src\platform`). Поэтому режим разработчика Windows для сборки не нужен.
 
-### Выпуск релиза
-
-1. Поднимите версию в `pubspec.yaml` и `lib\src\app_info.dart` — сборка проверяет, что они совпадают.
-2. Закоммитьте и поставьте тег: `git tag vX.Y.Z && git push origin main vX.Y.Z`.
-3. GitHub Actions прогонит тесты, соберёт установщик и опубликует релиз — установленные лаунчеры
-   найдут его сами.
-
 ### Устройство
 
 ```
@@ -170,6 +167,23 @@ lib/src/
 windows/runner/  окно, значок в трее, один экземпляр
 installer/       сценарий Inno Setup
 ```
+
+## Версии
+
+Номер версии — в `pubspec.yaml`: MAJOR.MINOR.PATCH и номер сборки после `+`; тот же номер —
+в `lib\src\app_info.dart`. Что изменилось в каждой версии — в [CHANGELOG.md](CHANGELOG.md).
+
+Как выпустить версию:
+
+1. Поднять номер в `pubspec.yaml` и `app_info.dart`: для исправлений — PATCH, для нового — MINOR,
+   для несовместимых изменений — MAJOR. Номер сборки каждый раз увеличивать на 1.
+2. Добавить в `CHANGELOG.md` раздел `## X.Y.Z — дата` с тем, что изменилось.
+3. Закоммитить, поставить тег и запушить его: `git tag vX.Y.Z && git push origin main vX.Y.Z`.
+
+По тегу GitHub Actions собирает установщик и переносную версию и публикует выпуск
+«ZapretLauncher X.Y.Z» с текстом из раздела версии в `CHANGELOG.md` (`tool/release_notes.sh`).
+Если тег не совпадает с версией в `pubspec.yaml` или раздела нет, выпуск не публикуется.
+Установленные лаунчеры найдут новую версию сами.
 
 ## Благодарности
 

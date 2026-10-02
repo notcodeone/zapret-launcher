@@ -61,7 +61,14 @@ class _UpdatesCard extends StatelessWidget {
         title: AppInfo.name,
         description: launcherLine,
         below: c.launcherUpdateAvailable
-            ? const StatusLine(tone: Tone.warning, text: 'Есть обновление')
+            ? Wrap(
+                spacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const StatusLine(tone: Tone.warning, text: 'Есть обновление'),
+                  NcQuietButton(label: 'Что нового', onPressed: c.openLauncherReleasePage),
+                ],
+              )
             : null,
         trailing: c.launcherUpdateAvailable
             ? NcButton.gray(

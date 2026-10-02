@@ -1046,6 +1046,7 @@ class AppController extends ChangeNotifier {
       _launcherLatest = await _launcherUpdates.latest();
       _launcherChecked = true;
       if (launcherUpdateAvailable && !had) {
+        // Что нового — в настройках («Что нового»); в оповещении одно действие.
         toasts.show(ToastData.update(
           'Вышел ${AppInfo.name} ${_launcherLatest!.version}',
           actionLabel: 'Обновить',
@@ -1063,6 +1064,12 @@ class AppController extends ChangeNotifier {
       _checkingLauncher = false;
       notifyListeners();
     }
+  }
+
+  /// Описание выпуска лаунчера на GitHub — раздел версии из CHANGELOG.md.
+  void openLauncherReleasePage() {
+    final url = _launcherLatest?.pageUrl.toString() ?? 'https://github.com/$launcherRepo/releases/latest';
+    win.shellExecute(url);
   }
 
   /// Проверить и лаунчер, и zapret — кнопка «Проверить» в настройках.

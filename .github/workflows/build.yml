@@ -1,0 +1,97 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    # Тег vX.Y.Z — выпуск версии (см. задачу release и README, «Версии»).
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: 3.47.6
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - name: Версия из pubspec.yaml
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*([0-9.]+)').Matches[0].Groups[1].Value
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      # Сборка release и установщик; скрипт заодно сверяет версию с AppInfo.version.
+      - name: Установщик (Inno Setup)
+        shell: pwsh
+        run: ./tool/build_installer.ps1 -Version $env:APP_VERSION
+      # archive: false — установщик скачивается как есть, без обёртки в zip.
+      - uses: actions/upload-artifact@v7
+        with:
+          path: dist/ZapretLauncher-Setup-${{ env.APP_VERSION }}.exe
+          archive: false
+      # Переносная версия: распаковать папку целиком и запустить ZapretLauncher.exe.
+      # Среда выполнения Visual C++ — рядом, как в установщике (после него: иначе попала бы туда дважды).
+      - name: Переносная версия
+        shell: pwsh
+        run: |
+          foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+            Copy-Item "$env:SystemRoot\System32\$dll" build/windows/x64/runner/Release/
+          }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ZapretLauncher-windows-portable
+          path: build/windows/x64/runner/Release/
+
+  # Выпуск версии по тегу vX.Y.Z: GitHub Release с установщиком и переносной версией,
+  # текст — раздел этой версии из CHANGELOG.md. Тег должен совпадать с версией в pubspec.yaml.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Версия тега и pubspec.yaml совпадают
+        run: |
+          version=$(sed -nE 's/^version:[[:space:]]*([0-9.]+).*/\1/p' pubspec.yaml)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Тег $GITHUB_REF_NAME, а в pubspec.yaml версия $version"
+            exit 1
+          fi
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+      - name: Текст выпуска из CHANGELOG.md
+        run: |
+          bash tool/release_notes.sh "$APP_VERSION" > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::В CHANGELOG.md нет раздела ## $APP_VERSION"
+            exit 1
+          fi
+      # v8: артефакты без zip (archive: false — установщик) скачиваются как есть.
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+      - name: Файлы выпуска
+        run: |
+          mkdir release
+          find dist -type f -name 'ZapretLauncher-Setup-*.exe' -exec cp {} release/ \;
+          (cd dist/ZapretLauncher-windows-portable && zip -qr "$GITHUB_WORKSPACE/release/ZapretLauncher-$APP_VERSION-windows-portable.zip" .)
+          ls -la release
+          test "$(ls release | wc -l)" -eq 2
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" release/* --title "ZapretLauncher $APP_VERSION" --notes-file notes.md
