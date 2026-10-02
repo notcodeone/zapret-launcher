@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../controller.dart';
+import '../platform/win32.dart' as win;
 import '../ui/ui.dart';
 
 /// Строки важного, общие для всех страниц: права, ошибка, чужой winws.exe.
@@ -51,6 +52,7 @@ NcHeader appHeader(BuildContext context, AppController c,
 /// Подвал: рядом с версией лаунчера — тихая кнопка его обновления.
 /// Обновления zapret — в оповещении и настройках, а то и сами.
 NcFooter appFooter(AppController c) => NcFooter(
+      onAuthorTap: () => win.shellExecute('https://github.com/notcodeone'),
       trailing: c.launcherUpdateAvailable
           ? NcQuietButton(
               label: 'Обновить до ${c.launcherLatest!.version}',

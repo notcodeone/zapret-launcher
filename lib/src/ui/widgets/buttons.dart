@@ -252,30 +252,61 @@ class NcIconButton extends StatelessWidget {
 
 /// Тихая текстовая кнопка: встраивается в строку текста или подвал. Скругление 6.
 class NcQuietButton extends StatelessWidget {
-  const NcQuietButton({super.key, required this.label, required this.onPressed, this.color});
+  const NcQuietButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.color,
+    this.style,
+    this.horizontalPadding = 6,
+    this.semanticLabel,
+  });
 
   final String label;
   final VoidCallback? onPressed;
   final Color? color;
+
+  /// Стиль текста; по умолчанию — пояснение 12,5 pt 500.
+  final TextStyle? style;
+
+  /// В ширину пробела — чтобы кнопка читалась как слово в строке текста.
+  final double horizontalPadding;
+  final String? semanticLabel;
+
+  /// Ширина пробела в [style] — для [horizontalPadding].
+  static double spaceWidth(BuildContext context, TextStyle style) => (TextPainter(
+        text: TextSpan(text: ' ', style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout())
+          .width;
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     return Pressable(
       onTap: onPressed,
+      semanticLabel: semanticLabel ?? label,
       builder: (context, s) => AnimatedContainer(
         duration: NcMotion.hover,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 2),
         decoration: BoxDecoration(
-          color: s.hovered || s.pressed ? p.field : p.field.withValues(alpha: 0),
+          color: s.pressed
+              ? Color.alphaBlend(p.text.withValues(alpha: .05), p.field)
+              : s.hovered
+                  ? p.field
+                  : p.field.withValues(alpha: 0),
           borderRadius: BorderRadius.circular(NcRadius.tag),
         ),
         child: Text(
           label,
-          style: NcType.caption.copyWith(
-            color: color ?? p.text,
-            fontWeight: FontWeight.w500,
-          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: style ??
+              NcType.caption.copyWith(
+                color: color ?? p.text,
+                fontWeight: FontWeight.w500,
+              ),
         ),
       ),
     );

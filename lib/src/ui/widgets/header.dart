@@ -181,14 +181,20 @@ class _SlideSwitcher extends StatelessWidget {
 
 /// Подвал: копирайт и версия слева, автор справа, 12,5 pt muted.
 class NcFooter extends StatelessWidget {
-  const NcFooter({super.key, this.trailing});
+  const NcFooter({super.key, this.trailing, this.onAuthorTap});
 
   /// Например, тихая кнопка «Обновить до …».
   final Widget? trailing;
 
+  /// «NotCode» — ссылка на автора; null — просто текст.
+  final VoidCallback? onAuthorTap;
+
   @override
   Widget build(BuildContext context) {
     final style = NcType.caption.copyWith(color: context.palette.muted);
+    // Отступы кнопки «NotCode» — ровно в ширину пробела: «Designed by NotCode» читается
+    // как обычная фраза, а подложка при наведении не липнет к буквам.
+    final space = NcQuietButton.spaceWidth(context, style);
     return SizedBox(
       height: NcSpace.footerHeight,
       // Слева копирайт (и кнопка обновления), справа автор; при нехватке места — многоточие.
@@ -211,8 +217,28 @@ class NcFooter extends StatelessWidget {
           const SizedBox(width: 16),
           Flexible(
             flex: 2,
-            child: Text('Designed by NotCode',
-                style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
+            child: onAuthorTap == null
+                ? Text('Designed by NotCode', style: style, maxLines: 1, overflow: TextOverflow.ellipsis)
+                // Сдвиг вправо на ширину пробела — текст стоит на отступе 24, как слева.
+                : Transform.translate(
+                    offset: Offset(space, 0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text('Designed by',
+                              style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                        NcQuietButton(
+                          label: 'NotCode',
+                          style: style,
+                          horizontalPadding: space,
+                          semanticLabel: 'NotCode на GitHub',
+                          onPressed: onAuthorTap,
+                        ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
