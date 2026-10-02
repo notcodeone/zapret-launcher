@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../app_info.dart';
 import '../controller.dart';
+import '../settings.dart';
 import '../ui/ui.dart';
 import '../zapret/releases.dart';
 import 'common.dart';
@@ -93,11 +94,16 @@ class _UpdatesCard extends StatelessWidget {
       ),
       NcSettingRow(
         title: 'Обновлять zapret сам',
-        description: 'Новая версия zapret ставится сама. Если с ней Discord или YouTube перестанут '
-            'открываться — лаунчер вернёт прежнюю и эту больше не поставит.',
-        below: c.settings.autoUpdateZapret && !c.settings.autoCheckUpdates
-            ? const StatusLine(tone: Tone.neutral, text: 'Работает, когда включена проверка обновлений')
-            : null,
+        description: 'Новая версия zapret ставится сама — с GitHub или вместе с новым лаунчером. '
+            'Если с ней Discord или YouTube перестанут открываться — лаунчер вернёт прежнюю '
+            'и эту больше не поставит.',
+        below: !c.settings.autoUpdateZapret
+            ? null
+            : !c.builtin
+                ? const StatusLine(tone: Tone.neutral, text: 'Только встроенный — своя папка не обновляется сама')
+                : !c.settings.autoCheckUpdates
+                    ? const StatusLine(tone: Tone.neutral, text: 'Работает, когда включена проверка обновлений')
+                    : null,
         trailing: NcSwitch(
           value: c.settings.autoUpdateZapret,
           label: 'Обновлять zapret сам',
@@ -118,16 +124,19 @@ class SettingsPage extends StatelessWidget {
     final install = c.install;
     final idle = c.busy == null;
 
+    final newest = c.newestZapretVersion;
     final String versionLine;
     if (install == null) {
       versionLine = 'Не установлен';
     } else if (c.updateAvailable) {
-      versionLine = 'Установлен ${install.version ?? '—'}, вышел ${c.latest!.version}';
+      versionLine = 'Установлен ${install.version ?? '—'}, есть $newest';
     } else if (c.latest != null) {
       versionLine = 'Установлен ${install.version ?? '—'} — последняя версия';
     } else {
       versionLine = 'Установлен ${install.version ?? '—'}';
     }
+    // Пока zapret работает, переезд в другую папку — это перезапуск, а он без прав не выйдет.
+    final canMove = idle && (c.elevated || !c.running);
 
     return NcPage(
       header: appHeader(context, c, title: 'Настройки', onBack: () => Navigator.of(context).pop()),
@@ -236,21 +245,40 @@ class SettingsPage extends StatelessWidget {
           index: 3,
           child: NcSettingsCard(children: [
             NcSettingRow(
+              title: 'Откуда zapret',
+              description: c.builtin
+                  ? 'Встроенный — идёт вместе с лаунчером, скачивать ничего не нужно. '
+                      'Лаунчер сам распаковывает его и обновляет.'
+                  : 'Своя папка zapret-discord-youtube — лаунчер запускает её как есть '
+                      'и сам не обновляет.',
+              below: Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: NcSegmented<ZapretSource>(
+                  value: c.zapretSource,
+                  onChanged: canMove ? c.setZapretSource : null,
+                  segments: const [
+                    NcSegment(ZapretSource.builtin, 'Встроенный', icon: LucideIcons.package),
+                    NcSegment(ZapretSource.custom, 'Своя папка', icon: LucideIcons.folderOpen),
+                  ],
+                ),
+              ),
+            ),
+            NcSettingRow(
               title: 'Версия',
               description: versionLine,
               below: c.updateAvailable
                   ? StatusLine(
                       tone: Tone.warning,
-                      text: c.latest!.version == c.settings.skippedZapretVersion
-                          ? 'С ${c.latest!.version} обход не работал — сам её не ставлю'
+                      text: newest == c.settings.skippedZapretVersion
+                          ? 'С $newest обход не работал — сам её не ставлю'
                           : 'Есть обновление',
                     )
                   : null,
               trailing: c.updateAvailable
                   ? NcButton.gray(
-                      label: 'Обновить до ${c.latest!.version}',
+                      label: 'Обновить до $newest',
                       loading: c.busy?.kind == 'download' || c.busy?.kind == 'install',
-                      onPressed: idle && c.elevated ? () => c.installLatest() : null,
+                      onPressed: idle && c.elevated ? () => c.updateZapret() : null,
                     )
                   : NcButton.gray(
                       label: 'Проверить',
@@ -272,7 +300,8 @@ class SettingsPage extends StatelessWidget {
               ),
             NcSettingRow(
               title: 'Папка',
-              description: install?.root.path ?? 'Не выбрана',
+              description: install?.root.path ??
+                  (c.builtin ? c.builtinZapretDir : c.settings.zapretDir ?? 'Не выбрана'),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -282,17 +311,21 @@ class SettingsPage extends StatelessWidget {
                       tooltip: 'Открыть папку',
                       onPressed: c.openZapretFolder,
                     ),
-                  const SizedBox(width: 4),
-                  NcButton.gray(
-                    label: 'Изменить',
-                    onPressed: idle && !c.running ? c.chooseFolder : null,
-                  ),
+                  // Папку встроенного выбирает лаунчер; своя — меняется.
+                  if (!c.builtin) ...[
+                    const SizedBox(width: 4),
+                    NcButton.gray(
+                      label: 'Изменить',
+                      onPressed: canMove ? c.chooseFolder : null,
+                    ),
+                  ],
                 ],
               ),
             ),
             NcSettingRow(
               title: 'Репозиторий zapret',
-              description: 'github.com/$zapretRepo — лаунчер скачивает zapret только отсюда.',
+              description: 'github.com/$zapretRepo — встроенный zapret взят отсюда, '
+                  'и обновления лаунчер скачивает только отсюда.',
               trailing: NcIconButton(
                 icon: LucideIcons.externalLink,
                 tooltip: 'Открыть страницу релиза',

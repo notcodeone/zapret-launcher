@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../controller.dart';
 import '../location/country.dart';
 import '../location/network_guard.dart';
+import '../settings.dart';
 import '../ui/ui.dart';
 import '../zapret/install.dart';
 import '../zapret/network.dart';
@@ -179,7 +180,8 @@ List<Widget> _blockedRow(BuildContext context, AppController c) {
   ];
 }
 
-/// zapret ещё не установлен: скачать или указать папку.
+/// zapret ещё не готов: распаковать встроенный, скачать или указать папку.
+/// Встроенный распаковывается сам при запуске — карточка видна, только если не вышло.
 class _InstallCard extends StatelessWidget {
   const _InstallCard({required this.controller});
 
@@ -189,37 +191,78 @@ class _InstallCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     final p = context.palette;
-    final version = c.latest?.version;
+    final idle = c.busy == null;
+    final installing = c.busy?.kind == 'download' || c.busy?.kind == 'install';
+    final bundled = c.bundledVersion;
+
+    final String title;
+    final String text;
+    final List<Widget> buttons;
+    if (!c.builtin) {
+      title = 'Папка zapret не найдена';
+      text = '${c.settings.zapretDir ?? 'Своя папка'} — её переместили или удалили. '
+          'Укажите папку заново или вернитесь к встроенному zapret.';
+      buttons = [
+        NcButton(
+          label: 'Указать папку',
+          icon: LucideIcons.folderOpen,
+          onPressed: idle ? c.chooseFolder : null,
+        ),
+        NcButton.secondary(
+          label: 'Встроенный zapret',
+          icon: LucideIcons.package,
+          loading: installing,
+          onPressed: idle ? () => c.setZapretSource(ZapretSource.builtin) : null,
+        ),
+      ];
+    } else if (bundled != null) {
+      title = 'Zapret ещё не распакован';
+      text = 'Zapret $bundled встроен в лаунчер — скачивать ничего не нужно. '
+          'Если zapret уже есть на компьютере, можно указать его папку.';
+      buttons = [
+        NcButton(
+          label: 'Распаковать zapret $bundled',
+          icon: LucideIcons.packageOpen,
+          loading: installing,
+          onPressed: idle ? c.installBundled : null,
+        ),
+        NcButton.secondary(
+          label: 'Указать папку',
+          icon: LucideIcons.folderOpen,
+          onPressed: idle ? c.chooseFolder : null,
+        ),
+      ];
+    } else {
+      // Сборка без встроенного zapret (из исходников без tool/fetch_zapret.ps1).
+      final version = c.latest?.version;
+      title = 'Zapret не установлен';
+      text = 'Лаунчер скачает последнюю версию из репозитория автора — '
+          'Flowseal/zapret-discord-youtube на GitHub. '
+          'Если zapret уже есть на компьютере, укажите его папку.';
+      buttons = [
+        NcButton(
+          label: version == null ? 'Скачать zapret' : 'Скачать zapret $version',
+          icon: LucideIcons.download,
+          loading: installing,
+          onPressed: idle ? c.installLatest : null,
+        ),
+        NcButton.secondary(
+          label: 'Указать папку',
+          icon: LucideIcons.folderOpen,
+          onPressed: idle ? c.chooseFolder : null,
+        ),
+      ];
+    }
+
     return NcCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Zapret не установлен', style: NcType.rowTitle),
+          Text(title, style: NcType.rowTitle),
           const SizedBox(height: 4),
-          Text(
-            'Лаунчер скачает последнюю версию из репозитория автора — '
-            'Flowseal/zapret-discord-youtube на GitHub. '
-            'Если zapret уже есть на компьютере, укажите его папку.',
-            style: NcType.caption.copyWith(color: p.muted),
-          ),
+          Text(text, style: NcType.caption.copyWith(color: p.muted)),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              NcButton(
-                label: version == null ? 'Скачать zapret' : 'Скачать zapret $version',
-                icon: LucideIcons.download,
-                loading: c.busy?.kind == 'download' || c.busy?.kind == 'install',
-                onPressed: c.busy == null ? c.installLatest : null,
-              ),
-              NcButton.secondary(
-                label: 'Указать папку',
-                icon: LucideIcons.folderOpen,
-                onPressed: c.busy == null ? c.chooseFolder : null,
-              ),
-            ],
-          ),
+          Wrap(spacing: 8, runSpacing: 8, children: buttons),
         ],
       ),
     );

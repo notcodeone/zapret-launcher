@@ -10,6 +10,7 @@ import 'package:zapret_launcher/src/controller.dart';
 import 'helpers.dart';
 import 'package:zapret_launcher/src/settings.dart';
 import 'package:zapret_launcher/src/ui/ui.dart';
+import 'package:zapret_launcher/src/zapret/bundle.dart';
 import 'package:zapret_launcher/src/zapret/install.dart';
 import 'package:zapret_launcher/src/zapret/probe.dart';
 import 'package:zapret_launcher/src/zapret/runner.dart';
@@ -87,6 +88,8 @@ void main() {
       watchNetworkEvents: false,
       launcherAutostart: FakeAutostart(),
       probeEnvironment: probe == null ? null : (_, _) => probe,
+      builtinZapretDir: p.join(tmp.path, 'builtin'),
+      bundle: ZapretBundle(Directory(p.join(tmp.path, 'no-bundle'))),
     )..init();
     tester.view.physicalSize = const Size(560, 640);
     tester.view.devicePixelRatio = 1;
@@ -104,11 +107,9 @@ void main() {
 
   testWidgets('без zapret — предлагает скачать или указать папку', (tester) async {
     final c = await pumpApp(tester, zapretDir: p.join(tmp.path, 'nothing-here'));
-    // Если zapret стоит в папке по умолчанию на этом компьютере, тест не о том.
-    if (c.install == null) {
-      expect(find.text('Zapret не установлен'), findsOneWidget);
-      expect(find.text('Указать папку'), findsOneWidget);
-    }
+    expect(c.install, isNull);
+    expect(find.text('Zapret не установлен'), findsOneWidget);
+    expect(find.text('Указать папку'), findsOneWidget);
     expect(find.text('Обход блокировок'), findsOneWidget);
     await dispose(tester, c);
   });

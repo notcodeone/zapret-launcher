@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:path/path.dart' as p;
 
 import 'location/network_guard.dart';
 import 'location/profiles.dart';
@@ -13,6 +14,7 @@ import 'platform/win32.dart' as win;
 import 'settings.dart';
 import 'updates/launcher_updates.dart';
 import 'ui/ui.dart';
+import 'zapret/bundle.dart';
 import 'zapret/diagnostics.dart';
 import 'zapret/install.dart';
 import 'zapret/network.dart';
@@ -45,7 +47,11 @@ class AppController extends ChangeNotifier {
     this._watchNetworkEvents = true,
     LauncherAutostart? launcherAutostart,
     HttpProber? prober,
-  })  : _autostart = launcherAutostart ?? const LauncherAutostart(),
+    ZapretBundle? bundle,
+    String? builtinZapretDir,
+  })  : _bundle = bundle ?? ZapretBundle.app(),
+        _builtinDir = builtinZapretDir ?? SettingsStore.defaultZapretDir(),
+        _autostart = launcherAutostart ?? const LauncherAutostart(),
         _prober = prober ?? HttpProber(),
         _isElevated = isElevated ?? win.isElevated,
         _store = store ?? SettingsStore(),
@@ -63,6 +69,10 @@ class AppController extends ChangeNotifier {
   final DiagnosticsSystem _diagSystem;
   final HttpProber _prober;
   final bool Function() _isElevated;
+
+  /// Zapret, встроенный в лаунчер, и папка, куда он распаковывается.
+  final ZapretBundle _bundle;
+  final String _builtinDir;
 
   /// Сторож сети; подменяется в тестах (без запросов страны и чтения адаптеров).
   final NetworkGuard Function(GuardedZapret zapret, ProfileHook onNetwork)? _guardFactory;
@@ -192,11 +202,30 @@ class AppController extends ChangeNotifier {
     return defaultProbeTargets;
   }
 
+  /// Откуда zapret: встроенный в лаунчер (по умолчанию) или своя папка.
+  ZapretSource get zapretSource => _settings.zapretSource ?? ZapretSource.builtin;
+  bool get builtin => zapretSource == ZapretSource.builtin;
+
+  /// Куда распаковывается встроенный zapret.
+  String get builtinZapretDir => _builtinDir;
+
+  /// Версия zapret, встроенного в эту сборку лаунчера; null — его нет.
+  String? get bundledVersion => _bundle.version;
+
+  /// Самая новая версия zapret, до которой можно обновиться: с GitHub или встроенная.
+  String? get newestZapretVersion {
+    final l = _latest?.version;
+    final b = builtin ? _bundle.version : null;
+    if (l == null || b == null) return l ?? b;
+    return compareVersions(b, l) > 0 ? b : l;
+  }
+
   /// Есть ли обновление zapret новее установленного.
-  bool get updateAvailable {
-    final l = _latest;
+  bool get updateAvailable => _newerThanInstalled(newestZapretVersion);
+
+  bool _newerThanInstalled(String? version) {
     final v = _install?.version;
-    return l != null && v != null && compareVersions(l.version, v) > 0;
+    return version != null && v != null && compareVersions(version, v) > 0;
   }
 
   Strategy? get strategy {
@@ -222,10 +251,8 @@ class AppController extends ChangeNotifier {
     _settings = _store.load();
     _elevated = _isElevated();
     _runtime = _runner.status();
+    if (_settings.zapretSource == null) _chooseSource();
     _install = _locateInstall();
-    if (_install != null && _settings.zapretDir != _install!.root.path) {
-      _saveSettings(_settings.copyWith(zapretDir: _install!.root.path));
-    }
     if (_settings.strategy == null && _runtime.serviceStrategy != null) {
       _saveSettings(_settings.copyWith(strategy: _runtime.serviceStrategy));
     }
@@ -251,24 +278,58 @@ class AppController extends ChangeNotifier {
     unawaited(guard.start());
     if (_watchNetworkEvents) _netWatch.start(guard.networkEvent);
     notifyListeners();
-    // Раз в 6 часов — новые версии лаунчера и zapret.
+    // Раз в 6 часов — новые версии лаунчера и zapret. Первая проверка — когда
+    // встроенный zapret готов: иначе обновление с GitHub обгонит распаковку.
     _updateTimer = Timer.periodic(const Duration(hours: 6), (_) => _periodicUpdateCheck());
-    if (_settings.autoCheckUpdates) unawaited(_periodicUpdateCheck());
+    _prepared = _prepareBuiltin();
+    unawaited(_prepared.whenComplete(() {
+      if (_settings.autoCheckUpdates) return _periodicUpdateCheck();
+    }));
     unawaited(refreshLauncherAutostart());
   }
 
-  /// Где zapret: из настроек, по запущенной службе или процессу, в папке по умолчанию.
-  ZapretInstall? _locateInstall() {
-    for (final path in [
-      _settings.zapretDir,
-      _runtime.activeRoot,
-      SettingsStore.defaultZapretDir(),
-    ]) {
+  /// Первый запуск или настройки от версии без встроенного zapret. Свою папку
+  /// оставляем своей: ту, что была выбрана, или ту, откуда zapret уже работает.
+  /// Иначе — встроенный (в его папку лаунчер раньше и скачивал zapret).
+  void _chooseSource() {
+    String? custom;
+    for (final path in [_settings.zapretDir, _runtime.activeRoot]) {
       if (path == null) continue;
-      final inst = ZapretInstall.open(path);
-      if (inst != null) return inst;
+      if (p.equals(path, _builtinDir)) break;
+      if (ZapretInstall.open(path) != null) {
+        custom = path;
+        break;
+      }
     }
-    return null;
+    _saveSettings(_settings.copyWith(
+      zapretSource: custom == null ? ZapretSource.builtin : ZapretSource.custom,
+      zapretDir: custom,
+    ));
+  }
+
+  /// Встроенный zapret — в своей папке, своя — в выбранной.
+  ZapretInstall? _locateInstall() {
+    final path = builtin ? _builtinDir : _settings.zapretDir;
+    return path == null ? null : ZapretInstall.open(path);
+  }
+
+  late Future<void> _prepared;
+
+  /// Встроенный zapret готов: распакован или обновлён после запуска лаунчера.
+  Future<void> get prepared => _prepared;
+
+  /// Встроенный zapret: при первом запуске — распаковать, а если лаунчер обновился
+  /// и внутри zapret новее — поставить и его (когда zapret обновляется сам).
+  Future<void> _prepareBuiltin() async {
+    final bundled = _bundle.version;
+    if (!builtin || bundled == null) return;
+    if (_install == null) {
+      await installBundled();
+      return;
+    }
+    if (!_newerThanInstalled(bundled)) return;
+    if (!_settings.autoUpdateZapret || bundled == _settings.skippedZapretVersion) return;
+    await _autoUpdate(bundled, () => installBundled(auto: true));
   }
 
   void _readZapretSettings() {
@@ -668,7 +729,7 @@ class AppController extends ChangeNotifier {
         win.shellExecute(target, parameters: parameters);
         return;
       case ReinstallFix():
-        await installLatest();
+        await reinstallZapret();
       case StartServiceFix(:final service):
         await _task(const HeaderStatus('fix', 'Запускаю службу…'), () async {
           try {
@@ -1116,17 +1177,19 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     var autoUpdate = false;
     try {
-      final hadUpdate = updateAvailable;
+      final hadUpdate = _newerThanInstalled(_latest?.version);
       _latest = await _releases.latest();
+      final fresh = _newerThanInstalled(_latest!.version);
       final skipped = _latest!.version == _settings.skippedZapretVersion;
-      if (updateAvailable && silent && _settings.autoUpdateZapret && !skipped && _elevated) {
+      // Сам лаунчер обновляет только встроенный zapret: своя папка — забота её хозяина.
+      if (fresh && silent && builtin && _settings.autoUpdateZapret && !skipped && _elevated) {
         // Ставим сами — после того как проверка закончится.
         autoUpdate = true;
-      } else if (updateAvailable && !hadUpdate) {
+      } else if (fresh && !hadUpdate) {
         toasts.show(ToastData.update(
           'Вышел zapret ${_latest!.version}',
           actionLabel: 'Обновить',
-          onAction: installLatest,
+          onAction: updateZapret,
         ));
       } else if (!silent && !updateAvailable && _install != null) {
         toasts.show(ToastData('Установлена последняя версия zapret — ${_install!.version}'));
@@ -1143,12 +1206,58 @@ class AppController extends ChangeNotifier {
     if (autoUpdate) await _autoUpdateZapret();
   }
 
-  /// Скачивает и ставит последнюю версию zapret: первая установка или обновление.
-  /// Скачивает и ставит последнюю версию zapret: первая установка или обновление.
+  /// Обновить zapret до самой новой версии: встроенную в лаунчер — без загрузки, иначе с GitHub.
+  Future<bool> updateZapret() {
+    final b = builtin ? _bundle.version : null;
+    final newest = newestZapretVersion;
+    if (b != null && newest != null && compareVersions(b, newest) >= 0) return installBundled();
+    return installLatest();
+  }
+
+  /// Поставить zapret заново (диагностика нашла, что файлов не хватает): встроенный,
+  /// если он не старее установленного, иначе — последний с GitHub.
+  Future<bool> reinstallZapret() {
+    final b = builtin ? _bundle.version : null;
+    final v = _install?.version;
+    if (b != null && (v == null || compareVersions(b, v) >= 0)) return installBundled();
+    return installLatest();
+  }
+
+  /// Распаковывает zapret, встроенный в лаунчер, — без интернета. Первая установка
+  /// или обновление; прежняя версия остаётся рядом, как и при обновлении с GitHub.
+  Future<bool> installBundled({bool auto = false}) async {
+    final version = _bundle.version;
+    if (version == null) return false;
+    final firstInstall = ZapretInstall.open(_builtinDir) == null;
+    final ok = await _task(
+      HeaderStatus('install', firstInstall ? 'Распаковываю zapret $version…' : 'Ставлю zapret $version…'),
+      () async {
+        final zip = await _bundle.copyZip();
+        await _replaceZapret(_builtinDir, () => installFromZip(zip, Directory(_builtinDir)));
+      },
+    );
+    if (ok) {
+      toasts.show(ToastData(
+        firstInstall
+            ? 'Zapret $version готов к работе'
+            : auto
+                ? 'Zapret обновился вместе с лаунчером до $version'
+                : 'Zapret обновлён до $version',
+        icon: firstInstall ? LucideIcons.packageCheck : LucideIcons.download,
+      ));
+      if (auto) {
+        onBackgroundNotice?.call('Zapret обновлён до $version', 'Новая версия пришла вместе с лаунчером.');
+      }
+    }
+    return ok;
+  }
+
+  /// Скачивает и ставит последнюю версию zapret с GitHub: первая установка или обновление.
   /// Прежняя версия остаётся рядом — к ней можно вернуться ([rollbackZapret]).
   Future<bool> installLatest({bool auto = false}) async {
     final firstInstall = _install == null;
-    final targetPath = _install?.root.path ?? SettingsStore.defaultZapretDir();
+    // Своя папка обновляется на месте; если её нет — zapret встанет как встроенный.
+    final targetPath = builtin ? _builtinDir : _install?.root.path ?? _builtinDir;
     String? installed;
     final ok = await _task(const HeaderStatus('update', 'Проверяю версию zapret…'), () async {
       final release = await _releases.latest();
@@ -1204,21 +1313,30 @@ class AppController extends ChangeNotifier {
     return ok;
   }
 
-  /// Замена файлов zapret: остановить (файлы заняты, пока работает winws.exe и загружен
-  /// драйвер), заменить и запустить снова так же — службой или процессом.
+  /// Замена файлов zapret или переход в другую папку: остановить (файлы заняты, пока
+  /// работает winws.exe и загружен драйвер), заменить и запустить снова так же —
+  /// службой или процессом. Zapret, работавший из прежней папки, переезжает в новую.
   Future<void> _replaceZapret(String targetPath, Future<ZapretInstall> Function() replace) async {
     final before = _runner.status();
-    final usesTarget = (before.activeRoot ?? '').toLowerCase() == targetPath.toLowerCase();
-    final wasRunning = before.running && usesTarget;
-    final hadService = before.serviceInstalled && usesTarget;
+    final active = before.activeRoot;
+    final current = _install?.root.path;
+    final affected = active != null &&
+        (p.equals(active, targetPath) || (current != null && p.equals(active, current)));
+    final wasRunning = before.running && affected;
+    final hadService = before.serviceInstalled && affected;
     final chosen = _settings.strategy;
-    if (usesTarget) {
+    if (affected) {
       await _runner.stopAll();
       await _runner.unloadDriver();
     }
     final inst = await replace();
     _install = inst;
-    _saveSettings(_settings.copyWith(zapretDir: inst.root.path));
+    final isBuiltin = p.equals(inst.root.path, _builtinDir);
+    // Своя папка помнится и при встроенном — чтобы вернуться к ней одним нажатием.
+    _saveSettings(_settings.copyWith(
+      zapretSource: isBuiltin ? ZapretSource.builtin : ZapretSource.custom,
+      zapretDir: isBuiltin ? null : inst.root.path,
+    ));
     _readZapretSettings();
 
     final s = strategy;
@@ -1242,16 +1360,20 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Новая версия zapret ставится сама. Если с ней Discord или YouTube перестали
-  /// открываться, а до обновления открывались, — возвращаем прежнюю и её больше не ставим.
   Future<void> _autoUpdateZapret() async {
     final target = _latest?.version;
-    if (target == null || !_elevated || _busy != null || probing || _install == null) return;
+    if (target != null) await _autoUpdate(target, () => installLatest(auto: true));
+  }
+
+  /// Новая версия zapret ставится сама. Если с ней Discord или YouTube перестали
+  /// открываться, а до обновления открывались, — возвращаем прежнюю и её больше не ставим.
+  Future<void> _autoUpdate(String target, Future<bool> Function() install) async {
+    if (!_elevated || _busy != null || probing || _install == null) return;
     final wasRunning = running;
     // Как было до обновления — чтобы было с чем сравнить.
     if (wasRunning) await checkNetwork();
     final before = wasRunning ? _network : null;
-    if (!await installLatest(auto: true)) return;
+    if (!await install()) return;
     if (before == null || !running) return;
     await Future<void>.delayed(const Duration(seconds: 3));
     await checkNetwork();
@@ -1350,8 +1472,8 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  /// Выбрать папку с уже скачанным zapret.
-  void chooseFolder() {
+  /// Своя папка с уже скачанным zapret. Если zapret работает — перезапустится из неё.
+  Future<void> chooseFolder() async {
     final path = win.pickFolder(title: 'Папка zapret-discord-youtube — та, где лежит service.bat');
     if (path == null) return;
     final inst = ZapretInstall.open(path);
@@ -1360,13 +1482,51 @@ class AppController extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    _install = inst;
-    _error = null;
-    _saveSettings(_settings.copyWith(zapretDir: inst.root.path));
-    _readZapretSettings();
-    notifyListeners();
-    toasts.show(ToastData('Папка zapret выбрана', icon: LucideIcons.folderOpen));
+    if (await _useInstall(inst)) {
+      toasts.show(ToastData('Папка zapret выбрана', icon: LucideIcons.folderOpen));
+    }
   }
+
+  /// Встроенный zapret или своя папка. Своей папки ещё нет — спросим, где она.
+  Future<void> setZapretSource(ZapretSource source) async {
+    if (source == zapretSource && _install != null) return;
+    if (source == ZapretSource.custom) {
+      final dir = _settings.zapretDir;
+      final inst = dir == null ? null : ZapretInstall.open(dir);
+      if (inst == null) return chooseFolder();
+      if (await _useInstall(inst)) {
+        toasts.show(ToastData('Zapret из своей папки', icon: LucideIcons.folderOpen));
+      }
+      return;
+    }
+    final existing = ZapretInstall.open(_builtinDir);
+    final bundled = _bundle.version;
+    // Встроенный новее распакованного — ставим его, если zapret обновляется сам.
+    final fresher = bundled != null &&
+        (existing == null ||
+            (_settings.autoUpdateZapret &&
+                bundled != _settings.skippedZapretVersion &&
+                compareVersions(bundled, existing.version ?? '0') > 0));
+    if (fresher) {
+      await installBundled();
+    } else if (existing != null) {
+      if (await _useInstall(existing)) {
+        toasts.show(const ToastData('Встроенный zapret', icon: LucideIcons.package));
+      }
+    } else {
+      // Сборка без встроенного zapret: на главной предложим скачать его с GitHub.
+      _install = null;
+      _saveSettings(_settings.copyWith(zapretSource: ZapretSource.builtin));
+      _readZapretSettings();
+      notifyListeners();
+    }
+  }
+
+  /// Перейти на zapret из другой папки; работающий zapret переезжает вместе с выбором.
+  Future<bool> _useInstall(ZapretInstall inst) => _task(
+        HeaderStatus('source', running ? 'Перезапускаю zapret из новой папки…' : 'Меняю папку zapret…'),
+        () => _replaceZapret(inst.root.path, () async => inst),
+      );
 
   void openZapretFolder() {
     final inst = _install;

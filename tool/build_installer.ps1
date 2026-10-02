@@ -19,6 +19,8 @@ if ($appInfo -notmatch "version = '$([regex]::Escape($Version))'") {
 }
 
 if (-not $SkipBuild) {
+  # Встроенный zapret — без него установщик не работал бы сразу после установки.
+  & "$PSScriptRoot\fetch_zapret.ps1"
   Push-Location $root
   try {
     flutter build windows --release

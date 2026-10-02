@@ -6,9 +6,19 @@ import 'package:path/path.dart' as p;
 
 import 'location/profiles.dart';
 
+/// Откуда zapret: встроенный в лаунчер или своя папка пользователя.
+enum ZapretSource {
+  /// Идёт вместе с лаунчером; лежит в [SettingsStore.defaultZapretDir], обновляется сам.
+  builtin,
+
+  /// zapret-discord-youtube из папки пользователя — лаунчер запускает его как есть.
+  custom,
+}
+
 /// Настройки лаунчера: %APPDATA%\ZapretLauncher\settings.json.
 class AppSettings {
   const AppSettings({
+    this.zapretSource,
     this.zapretDir,
     this.strategy,
     this.themeMode = ThemeMode.system,
@@ -24,7 +34,10 @@ class AppSettings {
     this.skippedZapretVersion,
   });
 
-  /// Папка zapret. null — ещё не выбрана.
+  /// Откуда zapret; null — настройки от версии без встроенного zapret (решит контроллер).
+  final ZapretSource? zapretSource;
+
+  /// Своя папка zapret ([ZapretSource.custom]); помнится и при встроенном.
   final String? zapretDir;
 
   /// Выбранная стратегия (имя файла без .bat).
@@ -60,6 +73,7 @@ class AppSettings {
   final String? skippedZapretVersion;
 
   AppSettings copyWith({
+    ZapretSource? zapretSource,
     String? zapretDir,
     String? strategy,
     ThemeMode? themeMode,
@@ -75,6 +89,7 @@ class AppSettings {
     String? skippedZapretVersion,
   }) =>
       AppSettings(
+        zapretSource: zapretSource ?? this.zapretSource,
         zapretDir: zapretDir ?? this.zapretDir,
         strategy: strategy ?? this.strategy,
         themeMode: themeMode ?? this.themeMode,
@@ -91,6 +106,7 @@ class AppSettings {
       );
 
   Map<String, Object?> toJson() => {
+        'zapretSource': zapretSource?.name,
         'zapretDir': zapretDir,
         'strategy': strategy,
         'themeMode': themeMode.name,
@@ -107,6 +123,7 @@ class AppSettings {
       };
 
   factory AppSettings.fromJson(Map<String, Object?> json) => AppSettings(
+        zapretSource: ZapretSource.values.where((s) => s.name == json['zapretSource']).firstOrNull,
         zapretDir: json['zapretDir'] as String?,
         strategy: json['strategy'] as String?,
         themeMode: ThemeMode.values.firstWhere(
@@ -138,7 +155,7 @@ class SettingsStore {
     return p.join(appData, 'ZapretLauncher', 'settings.json');
   }
 
-  /// Папка для zapret по умолчанию. ProgramData — путь без кириллицы и пробелов
+  /// Папка встроенного zapret. ProgramData — путь без кириллицы и пробелов
   /// (с ними winws.exe работает ненадёжно) и доступен службе Windows.
   static String defaultZapretDir() {
     final programData = Platform.environment['ProgramData'] ?? r'C:\ProgramData';

@@ -58,6 +58,10 @@ Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 [Tasks]
 Name: "desktopicon"; Description: "Значок на рабочем столе"; GroupDescription: "Значки:"; Flags: unchecked
 
+[InstallDelete]
+; Архив встроенного zapret прежней версии лаунчера — новый ляжет рядом под своим номером.
+Type: files; Name: "{app}\data\flutter_assets\assets\zapret\zapret-*.zip"
+
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Среда выполнения Visual C++ рядом с программой — без неё Flutter-приложение не запустится

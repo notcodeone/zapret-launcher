@@ -33,9 +33,12 @@ jobs:
         shell: pwsh
         run: |
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
-      # Сборка release и установщик; скрипт заодно сверяет версию с AppInfo.version.
+      # Сборка release и установщик; скрипт заодно сверяет версию с AppInfo.version
+      # и кладёт в сборку встроенный zapret (tool/fetch_zapret.ps1; токен — для лимита GitHub API).
       - name: Установщик (Inno Setup)
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: ./tool/build_installer.ps1 -Version $env:APP_VERSION
       # archive: false — установщик скачивается как есть, без обёртки в zip.
       - uses: actions/upload-artifact@v7

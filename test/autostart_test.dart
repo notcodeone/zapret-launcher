@@ -6,6 +6,7 @@ import 'package:zapret_launcher/src/controller.dart';
 import 'package:zapret_launcher/src/platform/autostart.dart';
 import 'package:zapret_launcher/src/settings.dart';
 import 'package:zapret_launcher/src/ui/ui.dart';
+import 'package:zapret_launcher/src/zapret/bundle.dart';
 import 'package:zapret_launcher/src/zapret/runner.dart';
 
 import 'helpers.dart';
@@ -66,6 +67,8 @@ void main() {
       guardFactory: quietGuard,
       watchNetworkEvents: false,
       launcherAutostart: autostart,
+      builtinZapretDir: p.join(tmp.path, 'builtin'),
+      bundle: ZapretBundle(Directory(p.join(tmp.path, 'no-bundle'))),
     );
     await tester.runAsync(() async {
       c.init();

@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:zapret_launcher/src/controller.dart';
 import 'package:zapret_launcher/src/settings.dart';
 import 'package:zapret_launcher/src/ui/ui.dart';
+import 'package:zapret_launcher/src/zapret/bundle.dart';
 import 'package:zapret_launcher/src/zapret/install.dart';
 import 'package:zapret_launcher/src/zapret/probe.dart';
 import 'package:zapret_launcher/src/zapret/releases.dart';
@@ -125,6 +126,9 @@ void main() {
       watchNetworkEvents: false,
       launcherAutostart: FakeAutostart(),
       prober: _FakeProber(() => brokenAfter && c.install?.version == '2.0.0'),
+      // Встроенный zapret — в той же папке; архива в лаунчере нет: обновления только с GitHub.
+      builtinZapretDir: root,
+      bundle: ZapretBundle(Directory(p.join(tmp.path, 'no-bundle'))),
     );
     await tester.runAsync(() async {
       c.init();

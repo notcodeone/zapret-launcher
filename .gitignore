@@ -113,3 +113,7 @@ CLAUDE.md
 
 # Установщик
 /dist/
+
+# Встроенный zapret — архив кладёт tool/fetch_zapret.ps1
+/assets/zapret/*.zip
+/assets/zapret/*.zip.part
