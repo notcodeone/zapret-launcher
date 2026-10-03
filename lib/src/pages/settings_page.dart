@@ -9,6 +9,7 @@ import '../ui/ui.dart';
 import '../zapret/releases.dart';
 import 'common.dart';
 import 'diagnostics_page.dart';
+import 'feedback_page.dart';
 import 'networks_page.dart';
 
 /// Тихая кнопка под пояснением строки: текст кнопки стоит на одной линии с пояснением.
@@ -183,13 +184,20 @@ enum SettingsSection {
   general('Основные', LucideIcons.settings2),
   zapret('Zapret', LucideIcons.zap),
   network('Сеть', LucideIcons.globe),
-  updates('Обновления', LucideIcons.refreshCw);
+  updates('Обновления', LucideIcons.refreshCw),
+  feedback('Обратная связь', LucideIcons.messageSquareText);
 
   const SettingsSection(this.title, this.icon);
 
   final String title;
   final IconData icon;
 }
+
+/// Страница раздела: у «Обратной связи» — своя, с формой.
+Widget settingsSectionPage(SettingsSection section) =>
+    section == SettingsSection.feedback
+    ? const FeedbackPage()
+    : SettingsSectionPage(section: section);
 
 /// Список разделов; под каждым — коротко, что в нём сейчас.
 class SettingsPage extends StatelessWidget {
@@ -220,15 +228,16 @@ class SettingsPage extends StatelessWidget {
           child: NcSettingsCard(
             children: [
               for (final s in SettingsSection.values)
-                _SectionRow(
-                  icon: _SectionIcon(section: s),
-                  title: _SectionTitle(section: s),
-                  summary: _summary(c, s),
-                  attention:
-                      s == SettingsSection.updates &&
-                      (c.launcherUpdateAvailable || c.updateAvailable),
-                  onTap: () => open(SettingsSectionPage(section: s)),
-                ),
+                if (s != SettingsSection.feedback)
+                  _SectionRow(
+                    icon: _SectionIcon(section: s),
+                    title: _SectionTitle(section: s),
+                    summary: _summary(c, s),
+                    attention:
+                        s == SettingsSection.updates &&
+                        (c.launcherUpdateAvailable || c.updateAvailable),
+                    onTap: () => open(settingsSectionPage(s)),
+                  ),
             ],
           ),
         ),
@@ -242,6 +251,13 @@ class SettingsPage extends StatelessWidget {
                 title: const Text('Диагностика', style: NcType.rowTitle),
                 summary: 'Что мешает zapret: другие обходы, VPN, прокси, DNS.',
                 onTap: () => open(const DiagnosticsPage()),
+              ),
+              _SectionRow(
+                icon: const _SectionIcon(section: SettingsSection.feedback),
+                title: const _SectionTitle(section: SettingsSection.feedback),
+                summary: _summary(c, SettingsSection.feedback),
+                onTap: () =>
+                    open(settingsSectionPage(SettingsSection.feedback)),
               ),
             ],
           ),
@@ -287,6 +303,8 @@ class SettingsPage extends StatelessWidget {
         return country == null
             ? 'Слежу за сетью'
             : 'Слежу за сетью · сейчас $country';
+      case SettingsSection.feedback:
+        return 'Сообщить об ошибке или предложить улучшение';
       case SettingsSection.updates:
         if (c.launcherUpdateAvailable) {
           return 'Вышел ${AppInfo.name} ${c.launcherLatest!.version}';
@@ -444,6 +462,22 @@ class _LerpHero extends StatelessWidget {
   }
 }
 
+/// Значок и название раздела в заголовке его страницы — сюда они перелетают из списка.
+class SettingsSectionHeading extends StatelessWidget {
+  const SettingsSectionHeading({super.key, required this.section});
+
+  final SettingsSection section;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      _SectionIcon(section: section, t: 1),
+      const SizedBox(width: 12),
+      Flexible(child: _SectionTitle(section: section, t: 1)),
+    ],
+  );
+}
+
 /// Страница раздела: значок с названием и карточки раздела.
 class SettingsSectionPage extends StatelessWidget {
   const SettingsSectionPage({super.key, required this.section});
@@ -458,6 +492,7 @@ class SettingsSectionPage extends StatelessWidget {
       SettingsSection.zapret => _zapret(c),
       SettingsSection.network => _network(context, c),
       SettingsSection.updates => [_UpdatesCard(controller: c)],
+      SettingsSection.feedback => const <Widget>[],
     };
     return NcPage(
       header: appHeader(
@@ -469,13 +504,7 @@ class SettingsSectionPage extends StatelessWidget {
       footer: appFooter(c),
       children: [
         ...importantRows(context, c),
-        Row(
-          children: [
-            _SectionIcon(section: section, t: 1),
-            const SizedBox(width: 12),
-            Flexible(child: _SectionTitle(section: section, t: 1)),
-          ],
-        ),
+        SettingsSectionHeading(section: section),
         for (final (i, card) in cards.indexed) ...[
           SizedBox(height: i == 0 ? 24 : NcSpace.gapCards),
           Appear(index: i + 1, child: card),

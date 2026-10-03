@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme.dart';
 import 'pressable.dart';
@@ -233,6 +234,7 @@ class NcTextField extends StatefulWidget {
     this.prefixIcon,
     this.minLines = 1,
     this.maxLines = 1,
+    this.maxLength,
     this.autofocus = false,
     this.onChanged,
     this.onSubmitted,
@@ -247,6 +249,9 @@ class NcTextField extends StatefulWidget {
   final IconData? prefixIcon;
   final int minLines;
   final int maxLines;
+
+  /// Сколько символов можно ввести; лишнее не вставится.
+  final int? maxLength;
   final bool autofocus;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
@@ -310,6 +315,10 @@ class _NcTextFieldState extends State<NcTextField> {
                   autofocus: widget.autofocus,
                   minLines: widget.minLines,
                   maxLines: widget.maxLines,
+                  inputFormatters: [
+                    if (widget.maxLength case final max?)
+                      LengthLimitingTextInputFormatter(max),
+                  ],
                   onChanged: widget.onChanged,
                   onSubmitted: widget.onSubmitted,
                   style: NcType.body.copyWith(color: p.text),

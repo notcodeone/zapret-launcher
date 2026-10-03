@@ -39,6 +39,9 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          # Другой адрес сервера обращений — переменная репозитория или организации (не секрет:
+          # он всё равно оказывается в программе); без неё — адрес из AppInfo.feedbackServer.
+          FEEDBACK_SERVER: ${{ vars.FEEDBACK_SERVER }}
         run: ./tool/build_installer.ps1 -Version $env:APP_VERSION
       # archive: false — установщик скачивается как есть, без обёртки в zip.
       - uses: actions/upload-artifact@v7

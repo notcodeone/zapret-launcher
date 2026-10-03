@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path/path.dart' as p;
 
 import 'location/network_guard.dart';
+import 'location/country.dart';
 import 'location/profiles.dart';
 import 'app_info.dart';
 import 'platform/autostart.dart';
@@ -14,6 +15,7 @@ import 'platform/win32.dart' as win;
 import 'settings.dart';
 import 'updates/launcher_updates.dart';
 import 'ui/ui.dart';
+import 'feedback/feedback.dart';
 import 'zapret/bundle.dart';
 import 'zapret/diagnostics.dart';
 import 'zapret/install.dart';
@@ -49,7 +51,9 @@ class AppController extends ChangeNotifier {
     HttpProber? prober,
     ZapretBundle? bundle,
     String? builtinZapretDir,
-  }) : _bundle = bundle ?? ZapretBundle.app(),
+    FeedbackClient? feedback,
+  }) : _feedback = feedback ?? FeedbackClient(),
+       _bundle = bundle ?? ZapretBundle.app(),
        _builtinDir = builtinZapretDir ?? SettingsStore.defaultZapretDir(),
        _autostart = launcherAutostart ?? const LauncherAutostart(),
        _prober = prober ?? HttpProber(),
@@ -69,6 +73,9 @@ class AppController extends ChangeNotifier {
   final DiagnosticsSystem _diagSystem;
   final HttpProber _prober;
   final bool Function() _isElevated;
+
+  /// Отправка обращений из «Обратной связи».
+  final FeedbackClient _feedback;
 
   /// Zapret, встроенный в лаунчер, и папка, куда он распаковывается.
   final ZapretBundle _bundle;
@@ -389,6 +396,9 @@ class AppController extends ChangeNotifier {
       (t) => now.difference(t) > const Duration(minutes: 5),
     );
     if (_watchdogRestarts.length >= 3) {
+      _journal(
+        'winws.exe закрылся 3 раза за 5 минут — сторож перестал его запускать',
+      );
       _wantRunning = false;
       _error = const AppError(
         'winws.exe закрывается снова и снова',
@@ -443,12 +453,144 @@ class AppController extends ChangeNotifier {
   }
 
   void _onGuardEvent(String title, String text) {
+    _journal(title);
     toasts.show(ToastData(title, icon: LucideIcons.globe));
     onBackgroundNotice?.call(title, text);
   }
 
+  // ── Журнал и обратная связь ──
+
+  /// Последние события лаунчера — для обращения в поддержку. Только в памяти:
+  /// на диск не пишется и уходит, лишь если человек сам приложит его к обращению.
+  final _events = <String>[];
+
+  void _journal(String line) {
+    final t = DateTime.now();
+    String two(int v) => v.toString().padLeft(2, '0');
+    _events.add('${two(t.hour)}:${two(t.minute)}:${two(t.second)} $line');
+    if (_events.length > 150) _events.removeAt(0);
+  }
+
+  bool _sendingFeedback = false;
+  bool get sendingFeedback => _sendingFeedback;
+
+  /// Отправка обращений настроена в этой сборке.
+  bool get feedbackAvailable => _feedback.configured;
+
+  /// Сведения о системе для обращения — только поля, которые принимает сервер.
+  Map<String, Object> feedbackDetails() {
+    final inst = _install;
+    final s = strategy;
+    final isp = guard.isp;
+    final windows = RegExp(r'(\d+\.\d+)\s*\(Build (\d+)\)')
+        .firstMatch(Platform.operatingSystemVersion);
+    final provider = isp == null
+        ? null
+        : providerShortName(isp, guard.asn ?? '');
+    return {
+      'launcher': AppInfo.version,
+      'zapret': ?inst?.version,
+      'zapretSource': zapretSource.name,
+      'running': running,
+      'mode': autostart ? 'service' : 'process',
+      if (s != null && s.id.length <= 64) 'strategy': s.id,
+      'gameFilter': _gameFilter.mode.name,
+      'ipset': _ipsetMode.name,
+      if (windows != null) 'windows': '${windows[1]}.${windows[2]}',
+      // Название провайдера — без номера AS и не длиннее, чем принимает сервер.
+      if (provider != null &&
+          provider.isNotEmpty &&
+          provider.length <= 80 &&
+          !RegExp(r'AS\d', caseSensitive: false).hasMatch(provider))
+        'provider': provider,
+      'networkGuard': _settings.networkGuard,
+      'profilesEnabled': _settings.profilesEnabled,
+      'watchdog': _settings.watchdog,
+      'autoUpdateZapret': _settings.autoUpdateZapret,
+    };
+  }
+
+  /// Журнал для обращения: последние события, итог проверки сети и диагностики.
+  /// Обезличен: без путей профиля, имени компьютера, адресов, названий сетей и стран.
+  String feedbackLog() {
+    final lines = <String>[
+      if (_events.isNotEmpty) ...['События:', ..._events],
+    ];
+    final r = _network;
+    if (r != null) {
+      final t = r.checkedAt;
+      String two(int v) => v.toString().padLeft(2, '0');
+      lines
+        ..add('')
+        ..add(
+          'Проверка сети в ${two(t.hour)}:${two(t.minute)} '
+          '${r.withZapret ? 'с zapret «${r.strategyTitle ?? '—'}»' : 'без zapret'}:',
+        );
+      for (final MapEntry(key: group, value: (ok, total))
+          in r.byGroup.entries) {
+        lines.add('$group — открывается $ok из $total');
+      }
+    }
+    final d = _diagnostics;
+    if (d != null) {
+      lines
+        ..add('')
+        ..add('Диагностика:');
+      // Только названия проверок: в подробностях бывают названия VPN и адреса прокси.
+      for (final x in d) {
+        final level = switch (x.level) {
+          CheckLevel.ok => 'в порядке',
+          CheckLevel.info => 'к сведению',
+          CheckLevel.warning => 'стоит проверить',
+          CheckLevel.problem => 'мешает',
+        };
+        lines.add('${x.title} — $level');
+      }
+    }
+    var text = lines.join('\n');
+    // Названия своих сетей и стран — личное.
+    final private = {
+      for (final p in profiles) p.name,
+      ?guard.countryLabel,
+      if (guard.country case final c?) countryName(c),
+    }.where((s) => s.trim().length >= 2);
+    for (final name in private) {
+      text = text.replaceAll(name, '«сеть»');
+    }
+    text = anonymizeLocal(text);
+    if (text.length > feedbackLogMax) {
+      text = text.substring(text.length - feedbackLogMax);
+    }
+    return text;
+  }
+
+  /// Отправляет обращение; возвращает его номер. Сведения и журнал — только если
+  /// человек согласился ([attach]).
+  Future<int> sendFeedback({
+    required FeedbackKind kind,
+    required String text,
+    required bool attach,
+  }) async {
+    _sendingFeedback = true;
+    notifyListeners();
+    try {
+      final id = await _feedback.send(
+        kind: kind,
+        text: text.trim(),
+        details: attach ? feedbackDetails() : null,
+        log: attach ? feedbackLog() : null,
+      );
+      _journal('Отправлено обращение №$id');
+      return id;
+    } finally {
+      _sendingFeedback = false;
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
+    _feedback.close();
     _netWatch.stop();
     guard.removeListener(notifyListeners);
     guard.dispose();
@@ -701,6 +843,7 @@ class AppController extends ChangeNotifier {
     if (_busy != null) return false;
     _busy = status;
     _error = null;
+    _journal(status.text);
     final wasRunning = running;
     final strategyBefore = _runtime.serviceStrategy ?? _settings.strategy;
     notifyListeners();
@@ -744,6 +887,12 @@ class AppController extends ChangeNotifier {
     } on Object catch (e) {
       _error = AppError('Что-то пошло не так', e.toString());
     } finally {
+      final error = _error;
+      if (error != null) {
+        _journal(
+          'Ошибка: ${error.title}${error.detail == null ? '' : ' — ${error.detail}'}',
+        );
+      }
       _busy = null;
       _runtime = _runner.status();
       // Что получилось после действия пользователя — то сторож и бережёт.

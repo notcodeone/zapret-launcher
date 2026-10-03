@@ -23,7 +23,11 @@ if (-not $SkipBuild) {
   & "$PSScriptRoot\fetch_zapret.ps1"
   Push-Location $root
   try {
-    flutter build windows --release
+    # Сервер обращений («Обратная связь»): другой адрес — переменной FEEDBACK_SERVER,
+    # без неё — тот, что в AppInfo.feedbackServer.
+    $defines = @()
+    if ($env:FEEDBACK_SERVER) { $defines += "--dart-define=FEEDBACK_SERVER=$($env:FEEDBACK_SERVER.TrimEnd('/'))" }
+    flutter build windows --release @defines
     if ($LASTEXITCODE -ne 0) { throw 'flutter build windows --release не удался' }
   } finally { Pop-Location }
 }

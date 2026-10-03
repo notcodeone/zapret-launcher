@@ -80,8 +80,8 @@ class _ZapretLauncherAppState extends State<ZapretLauncherApp> {
             '/settings' => const SettingsPage(),
             // /settings/general, /settings/zapret, /settings/network, /settings/updates.
             final String name when name.startsWith('/settings/') =>
-              SettingsSectionPage(
-                section: SettingsSection.values.firstWhere(
+              settingsSectionPage(
+                SettingsSection.values.firstWhere(
                   (s) => name == '/settings/${s.name}',
                   orElse: () => SettingsSection.general,
                 ),
