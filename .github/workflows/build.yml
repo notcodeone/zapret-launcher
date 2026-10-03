@@ -98,3 +98,35 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" release/* --title "ZapretLauncher $APP_VERSION" --notes-file notes.md
+      # Сообщение о выпуске в Telegram-канал: текст — тот же раздел CHANGELOG.md, кнопка
+      # «Скачать» ведёт на выпуск. Токен бота хранится двумя секретами: TELEGRAM_BOT_ID —
+      # число до «:», TELEGRAM_BOT_SECRET — после; канал — TELEGRAM_CHAT_ID (@имя или -100…).
+      # Секретов нет — шаг ничего не делает; Telegram не ответил — выпуск всё равно удачный.
+      - name: Сообщение в Telegram
+        continue-on-error: true
+        env:
+          TELEGRAM_BOT_ID: ${{ secrets.TELEGRAM_BOT_ID }}
+          TELEGRAM_BOT_SECRET: ${{ secrets.TELEGRAM_BOT_SECRET }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_ID" ] || [ -z "$TELEGRAM_BOT_SECRET" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Секретов Telegram нет — сообщение не отправляю"
+            exit 0
+          fi
+          bash tool/telegram_message.sh "$APP_VERSION" notes.md > message.html
+          url="https://github.com/$GITHUB_REPOSITORY/releases/tag/$GITHUB_REF_NAME"
+          jq -n --arg chat "$TELEGRAM_CHAT_ID" --rawfile text message.html --arg url "$url" '{
+            chat_id: $chat,
+            text: $text,
+            parse_mode: "HTML",
+            link_preview_options: {is_disabled: true},
+            reply_markup: {inline_keyboard: [[{text: "Скачать", url: $url}]]}
+          }' > message.json
+          status=$(curl -sS -o response.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' --data @message.json \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_ID}:${TELEGRAM_BOT_SECRET}/sendMessage")
+          if [ "$status" != 200 ]; then
+            echo "::warning::Telegram не принял сообщение ($status): $(jq -r '.description // empty' response.json)"
+            exit 1
+          fi
+          echo "Сообщение в Telegram отправлено"

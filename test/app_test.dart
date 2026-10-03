@@ -145,9 +145,22 @@ void main() {
     expect(find.text('Включить'), findsOneWidget);
     expect(find.text('Игровой фильтр и IPSet'), findsOneWidget);
 
+    // Настройки — список разделов; сами настройки — на странице раздела.
     await tester.tap(find.byTooltip('Настройки'));
     await tester.pumpAndSettle();
+    expect(find.text('Основные'), findsOneWidget);
+    expect(find.text('Тема'), findsNothing);
+    expect(find.text('Своя папка · как general.bat'), findsOneWidget);
+
+    await tester.tap(find.text('Основные'));
+    await tester.pumpAndSettle();
     expect(find.text('Тема'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Назад'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zapret'));
+    await tester.pumpAndSettle();
+    expect(find.text('Как запускать'), findsOneWidget);
     expect(find.text(root.path), findsOneWidget);
     await dispose(tester, c);
   });

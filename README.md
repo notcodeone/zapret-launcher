@@ -207,6 +207,12 @@ installer/       сценарий Inno Setup
 Если тег не совпадает с версией в `pubspec.yaml` или раздела нет, выпуск не публикуется.
 Установленные лаунчеры найдут новую версию сами.
 
+О выпуске можно сообщать в Telegram-канал: бот публикует тот же текст из `CHANGELOG.md` с кнопкой
+«Скачать» (`tool/telegram_message.sh`). Для этого в Settings → Secrets and variables → Actions
+нужны три секрета: `TELEGRAM_BOT_ID` и `TELEGRAM_BOT_SECRET` — части токена бота до и после «:»,
+`TELEGRAM_CHAT_ID` — `@имя` канала или его id `-100…`. Бот должен быть администратором канала.
+Без секретов шаг пропускается.
+
 ## Благодарности
 
 - [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) — стратегии и сборка zapret для Discord и YouTube;
