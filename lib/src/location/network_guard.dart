@@ -94,6 +94,7 @@ class NetworkGuard extends ChangeNotifier {
     bool Function()? canControl,
     this.onEvent,
     this.settle = const Duration(seconds: 3),
+    this.retryUnsure = const Duration(seconds: 10),
     this.pollEvery = const Duration(seconds: 5),
     this.countryEvery = const Duration(minutes: 5),
     this.countryMaxAge = const Duration(minutes: 1),
@@ -168,6 +169,9 @@ class NetworkGuard extends ChangeNotifier {
   final void Function(String title, String text)? onEvent;
 
   final Duration settle;
+
+  /// Через сколько проверить снова, если сайты не удалось проверить (сеть ещё не поднялась).
+  final Duration retryUnsure;
   final Duration pollEvery;
   final Duration countryEvery;
   final Duration countryMaxAge;
@@ -249,6 +253,7 @@ class NetworkGuard extends ChangeNotifier {
   /// Пользователь включил zapret сам: запоминаем страну, автоматика сбрасывается.
   void userStarted() {
     autoOff = null;
+    _userOff = false;
     final fresh =
         countryCheckedAt != null &&
         DateTime.now().difference(countryCheckedAt!) < countryMaxAge;
@@ -263,11 +268,29 @@ class NetworkGuard extends ChangeNotifier {
     _notify();
   }
 
-  /// Пользователь выключил zapret сам — сторож его не включит.
+  /// Пользователь выключил zapret сам — в этой сети сторож его не включит.
+  /// В другой запомненной сети, где zapret нужен, — включит.
   void userStopped() {
     autoOff = null;
     baseline = null;
+    _userOff = true;
+    _userOffAsn = asn;
     _notify();
+  }
+
+  /// zapret выключили вручную, и в какой сети (номер AS; null — неизвестна).
+  bool _userOff = false;
+  String? _userOffAsn;
+
+  /// Сколько раз подряд сайты не удалось проверить (сеть ещё не поднялась).
+  int _unsure = 0;
+
+  /// Сайты проверить не удалось — попробуем ещё раз чуть позже, но не бесконечно.
+  void _retryUnsure() {
+    if (_unsure >= 3 || _disposed) return;
+    _unsure++;
+    _settleTimer?.cancel();
+    _settleTimer = Timer(retryUnsure, () => unawaited(networkChanged()));
   }
 
   /// Узнаёт страну; свежий ответ переиспользует, одновременные проверки сливает в одну.
@@ -324,6 +347,7 @@ class NetworkGuard extends ChangeNotifier {
     final first = _lastPrint == null;
     _lastPrint = current;
     if (first) return;
+    _unsure = 0;
     _settleTimer?.cancel();
     _settleTimer = Timer(settle, () => unawaited(networkChanged()));
   }
@@ -475,10 +499,30 @@ class NetworkGuard extends ChangeNotifier {
         return;
       }
 
-      if (autoOff == null) return;
+      if (autoOff == null) {
+        // Сторож zapret не выключал. Но это запомненная сеть, где zapret нужен, —
+        // включаем, если без обхода сайты не открываются. Кроме сети, где его
+        // выключили вручную: там решение за человеком.
+        final network = profile.network;
+        if (network == null || (_userOff && _userOffAsn == asn)) return;
+        final open = await zapret.servicesOpen();
+        if (open == null) {
+          _retryUnsure();
+        } else if (!open && await zapret.start()) {
+          _userOff = false;
+          baseline = now ?? baseline;
+          onEvent?.call(
+            'Zapret включён: сеть «$network»',
+            'Без обхода Discord и YouTube здесь не открываются — включил со стратегией этой сети.',
+          );
+        }
+        return;
+      }
       // Выключали сами — включаем, когда обход снова нужен.
       final open = await zapret.servicesOpen();
-      if (open == false && await zapret.start()) {
+      if (open == null) {
+        _retryUnsure();
+      } else if (!open && await zapret.start()) {
         autoOff = null;
         baseline = now ?? baseline;
         onEvent?.call(

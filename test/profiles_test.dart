@@ -226,4 +226,106 @@ void main() {
       c.toasts.dispose();
     },
   );
+
+  testWidgets(
+    'из сети без блокировок — в запомненную сеть с блокировками: zapret включается сам',
+    (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('zl-prof-');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      final root = p.join(tmp.path, 'zapret');
+      File(p.join(root, 'bin', 'winws.exe')).createSync(recursive: true);
+      for (final id in ['general', 'general (ALT2)']) {
+        File(p.join(root, '$id.bat'))
+            .writeAsStringSync('"%BIN%winws.exe" --wf-tcp=80');
+      }
+      // Обе сети запомнены: дома (AS12389) — своя стратегия, на работе (AS8359) —
+      // стандартная. Сейчас компьютер на работе, zapret выключен вручную.
+      final store = SettingsStore(path: p.join(tmp.path, 's.json'))
+        ..save(
+          AppSettings(
+            zapretDir: root,
+            strategy: 'general',
+            networkGuard: true,
+            profiles: [
+              NetworkProfile(
+                asn: 'AS12389',
+                name: 'Дом',
+                strategy: 'general (ALT2)',
+                lastSeen: DateTime(2026, 10, 2),
+              ),
+              NetworkProfile(
+                asn: 'AS8359',
+                name: 'Работа',
+                strategy: 'general',
+                lastSeen: DateTime(2026, 10, 2),
+              ),
+            ],
+          ),
+        );
+
+      var asn = 'AS8359';
+      final runner = _FakeRunner(root)..alive = false;
+      late _Bridge bridge;
+      final c = AppController(
+        toasts: ToastController(),
+        store: store,
+        runner: runner,
+        isElevated: () => true,
+        watchNetworkEvents: false,
+        launcherAutostart: FakeAutostart(),
+        guardFactory: (zapret, onNetwork) {
+          bridge = _Bridge(zapret);
+          return NetworkGuard(
+            zapret: bridge,
+            enabled: () => true,
+            countryEnabled: () => true,
+            lookup: () async => (country: 'RU', source: 'test'),
+            providerEnabled: () => true,
+            providerLookup: () async =>
+                (asn: asn, isp: null, country: 'RU', source: 'test'),
+            fingerprint: () async => 'net',
+            onNetwork: onNetwork,
+            settle: Duration.zero,
+            retryUnsure: const Duration(milliseconds: 20),
+          );
+        },
+      );
+      await tester.runAsync(() async {
+        c.init();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      expect(c.running, isFalse);
+      // Выключили вручную на работе — здесь сторож его не включает.
+      c.guard.userStopped();
+      bridge.open = false;
+      await tester.runAsync(c.guard.networkChanged);
+      expect(c.running, isFalse);
+
+      // Домой: без обхода не открывается — zapret включается со стратегией дома.
+      asn = 'AS12389';
+      await tester.runAsync(c.guard.networkChanged);
+      expect(c.running, isTrue);
+      expect(runner.started, 'general (ALT2)');
+      expect(c.guard.autoOff, isNull);
+
+      // Дома выключили вручную и поехали на работу. Сразу после переключения сеть ещё
+      // не поднялась — проверить нельзя; сторож пробует снова и включает zapret
+      // со стратегией работы.
+      await tester.runAsync(() async {
+        await c.stop();
+        runner.started = null;
+        asn = 'AS8359';
+        bridge.open = null;
+        await c.guard.networkChanged();
+        expect(c.running, isFalse);
+        bridge.open = false;
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      });
+      expect(c.running, isTrue);
+      expect(runner.started, 'general');
+
+      c.dispose();
+      c.toasts.dispose();
+    },
+  );
 }
