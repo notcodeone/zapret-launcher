@@ -26,15 +26,21 @@ class _FakeRunner extends ZapretRunner {
 
   @override
   RuntimeStatus status() => RuntimeStatus(
-        processes: alive ? [WinwsProcess(1, p.join(root, 'bin', 'winws.exe'))] : const [],
-        service: null,
-        serviceStrategy: null,
-      );
+    processes: alive
+        ? [WinwsProcess(1, p.join(root, 'bin', 'winws.exe'))]
+        : const [],
+    service: null,
+    serviceStrategy: null,
+  );
 
   @override
   void prepare(ZapretInstall install) {}
   @override
-  Future<void> startProcess(ZapretInstall install, Strategy strategy, GameFilter filter) async {
+  Future<void> startProcess(
+    ZapretInstall install,
+    Strategy strategy,
+    GameFilter filter,
+  ) async {
     starts++;
     alive = true;
   }
@@ -58,13 +64,16 @@ class _FakeReleases extends ReleaseClient {
 
   @override
   Future<ReleaseInfo> latest() async => ReleaseInfo(
-        version: version,
-        zipUrl: Uri.parse('https://example.com/z.zip'),
-        pageUrl: Uri.parse('https://example.com'),
-      );
+    version: version,
+    zipUrl: Uri.parse('https://example.com/z.zip'),
+    pageUrl: Uri.parse('https://example.com'),
+  );
 
   @override
-  Future<File> download(ReleaseInfo release, {void Function(double? progress)? onProgress}) async {
+  Future<File> download(
+    ReleaseInfo release, {
+    void Function(double? progress)? onProgress,
+  }) async {
     // installFromZip удаляет папку архива — отдаём копию.
     final dir = Directory.systemTemp.createTempSync('zl-zip-');
     return zip.copySync(p.join(dir.path, 'z.zip'));
@@ -79,10 +88,12 @@ class _FakeProber extends HttpProber {
 
   @override
   Future<TargetResult> check(ProbeTarget target) async => TargetResult(
-        target,
-        brokenWhen() && target.group == 'Discord' ? ProbeOutcome.blocked : ProbeOutcome.ok,
-        latency: const Duration(milliseconds: 50),
-      );
+    target,
+    brokenWhen() && target.group == 'Discord'
+        ? ProbeOutcome.blocked
+        : ProbeOutcome.ok,
+    latency: const Duration(milliseconds: 50),
+  );
 }
 
 void main() {
@@ -92,8 +103,10 @@ void main() {
 
   void fakeZapret(String dir, String version) {
     File(p.join(dir, 'bin', 'winws.exe')).createSync(recursive: true);
-    File(p.join(dir, 'general.bat')).writeAsStringSync('"%BIN%winws.exe" --wf-tcp=80');
-    File(p.join(dir, 'service.bat')).writeAsStringSync('set "LOCAL_VERSION=$version"\r\n');
+    File(p.join(dir, 'general.bat'))
+        .writeAsStringSync('"%BIN%winws.exe" --wf-tcp=80');
+    File(p.join(dir, 'service.bat'))
+        .writeAsStringSync('set "LOCAL_VERSION=$version"\r\n');
     File(p.join(dir, 'lists', 'list-general-user.txt'))
       ..createSync(recursive: true)
       ..writeAsStringSync('my.site\r\n');
@@ -112,10 +125,19 @@ void main() {
   });
   tearDown(() => tmp.deleteSync(recursive: true));
 
-  Future<AppController> make(WidgetTester tester, {required bool brokenAfter}) async {
+  Future<AppController> make(
+    WidgetTester tester, {
+    required bool brokenAfter,
+  }) async {
     late AppController c;
     final store = SettingsStore(path: p.join(tmp.path, 's.json'))
-      ..save(AppSettings(zapretDir: root, strategy: 'general', autoCheckUpdates: false));
+      ..save(
+        AppSettings(
+          zapretDir: root,
+          strategy: 'general',
+          autoCheckUpdates: false,
+        ),
+      );
     c = AppController(
       toasts: ToastController(),
       store: store,
@@ -137,18 +159,25 @@ void main() {
     return c;
   }
 
-  testWidgets('новая версия работает — остаётся, прежняя сохранена', (tester) async {
+  testWidgets('новая версия работает — остаётся, прежняя сохранена', (
+    tester,
+  ) async {
     final c = await make(tester, brokenAfter: false);
     await tester.runAsync(() => c.checkUpdates(silent: true));
     expect(c.install!.version, '2.0.0');
     expect(c.running, isTrue);
     expect(c.previousZapretVersion, '1.0.0');
-    expect(File(p.join(root, 'lists', 'list-general-user.txt')).readAsStringSync(), 'my.site\r\n');
+    expect(
+      File(p.join(root, 'lists', 'list-general-user.txt')).readAsStringSync(),
+      'my.site\r\n',
+    );
     c.dispose();
     c.toasts.dispose();
   });
 
-  testWidgets('новая версия сломала Discord — откат и больше не ставится', (tester) async {
+  testWidgets('новая версия сломала Discord — откат и больше не ставится', (
+    tester,
+  ) async {
     final c = await make(tester, brokenAfter: true);
     await tester.runAsync(() => c.checkUpdates(silent: true));
     expect(c.install!.version, '1.0.0');

@@ -126,26 +126,26 @@ class Palette extends ThemeExtension<Palette> {
 
   /// Одна тень на всё — мягкая двойная: широкая размытая и короткая близкая.
   List<BoxShadow> get softShadow => [
-        BoxShadow(
-          color: Color.fromRGBO(0, 0, 0, shadowAlpha),
-          blurRadius: 28,
-          offset: const Offset(0, 8),
-        ),
-        BoxShadow(
-          color: Color.fromRGBO(0, 0, 0, shadowAlpha * .6),
-          blurRadius: 4,
-          offset: const Offset(0, 1),
-        ),
-      ];
+    BoxShadow(
+      color: Color.fromRGBO(0, 0, 0, shadowAlpha),
+      blurRadius: 28,
+      offset: const Offset(0, 8),
+    ),
+    BoxShadow(
+      color: Color.fromRGBO(0, 0, 0, shadowAlpha * .6),
+      blurRadius: 4,
+      offset: const Offset(0, 1),
+    ),
+  ];
 
   /// Тень меню и диалогов.
   List<BoxShadow> get menuShadow => const [
-        BoxShadow(
-          color: Color.fromRGBO(0, 0, 0, .16),
-          blurRadius: 32,
-          offset: Offset(0, 12),
-        ),
-      ];
+    BoxShadow(
+      color: Color.fromRGBO(0, 0, 0, .16),
+      blurRadius: 32,
+      offset: Offset(0, 12),
+    ),
+  ];
 
   /// Рамка карточки: в тёмной теме тень не видна, её заменяет тонкая рамка.
   BoxBorder? get cardOutline =>
@@ -192,41 +192,67 @@ abstract final class NcType {
 
   /// Заголовок страницы — 30 / 1.1 · 700 · −0.8.
   static const pageTitle = TextStyle(
-      fontSize: 30, height: 1.1, fontWeight: FontWeight.w700, letterSpacing: -.8);
+    fontSize: 30,
+    height: 1.1,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -.8,
+  );
 
   /// Раздел — 22 / 1.2 · 700 · −0.3.
   static const section = TextStyle(
-      fontSize: 22, height: 1.2, fontWeight: FontWeight.w700, letterSpacing: -.3);
+    fontSize: 22,
+    height: 1.2,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -.3,
+  );
 
   /// Заголовок диалога, меню — 20 / 1.2 · 700 · −0.3.
   static const dialogTitle = TextStyle(
-      fontSize: 20, height: 1.2, fontWeight: FontWeight.w700, letterSpacing: -.3);
+    fontSize: 20,
+    height: 1.2,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -.3,
+  );
 
   /// Шапка — 16 · 700 · −0.3.
-  static const header =
-      TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.3);
+  static const header = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -.3,
+  );
 
   /// Заголовок строки — 15 · 600.
   static const rowTitle = TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
 
   /// Основной — 14 / 1.35 · 400.
-  static const body =
-      TextStyle(fontSize: 14, height: 1.35, fontWeight: FontWeight.w400);
+  static const body = TextStyle(
+    fontSize: 14,
+    height: 1.35,
+    fontWeight: FontWeight.w400,
+  );
 
   /// Кнопка — 13.5 · 500.
   static const button = TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500);
 
   /// Крупная кнопка — 14.5 · 500.
-  static const buttonLarge =
-      TextStyle(fontSize: 14.5, fontWeight: FontWeight.w500);
+  static const buttonLarge = TextStyle(
+    fontSize: 14.5,
+    fontWeight: FontWeight.w500,
+  );
 
   /// Пояснение, статус — 12.5 / 1.35 · 400 (цвет muted).
-  static const caption =
-      TextStyle(fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w400);
+  static const caption = TextStyle(
+    fontSize: 12.5,
+    height: 1.35,
+    fontWeight: FontWeight.w400,
+  );
 
   /// Подпись поля — 11 · 500 · +0.6, заглавными (цвет muted).
-  static const fieldLabel =
-      TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: .6);
+  static const fieldLabel = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w500,
+    letterSpacing: .6,
+  );
 
   /// Метка — 11.5.
   static const tag = TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500);

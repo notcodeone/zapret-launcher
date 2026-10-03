@@ -14,12 +14,14 @@ void main(List<String> args) {
     return null;
   }
 
-  runApp(ZapretLauncherApp(
-    initialRoute: arg('route'),
-    themeOverride: switch (arg('theme')) {
-      'light' => ThemeMode.light,
-      'dark' => ThemeMode.dark,
-      _ => null,
-    },
-  ));
+  runApp(
+    ZapretLauncherApp(
+      initialRoute: arg('route'),
+      themeOverride: switch (arg('theme')) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => null,
+      },
+    ),
+  );
 }

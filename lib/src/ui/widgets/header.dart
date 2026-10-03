@@ -50,7 +50,12 @@ class NcHeader extends StatelessWidget {
       lead = _StatusLabel(status: status!);
       leadKey = 'status:${status!.kind}';
     } else if (title != null) {
-      lead = Text(title!, style: NcType.header, maxLines: 1, overflow: TextOverflow.ellipsis);
+      lead = Text(
+        title!,
+        style: NcType.header,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
       leadKey = 'title:$title';
     } else {
       lead = const _Brand();
@@ -69,7 +74,11 @@ class NcHeader extends StatelessWidget {
       child: Row(
         children: [
           if (onBack != null) ...[
-            NcIconButton(icon: LucideIcons.arrowLeft, tooltip: 'Назад', onPressed: onBack),
+            NcIconButton(
+              icon: LucideIcons.arrowLeft,
+              tooltip: 'Назад',
+              onPressed: onBack,
+            ),
             const SizedBox(width: 4),
           ],
           Expanded(
@@ -207,10 +216,17 @@ class NcFooter extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Flexible(
-                  child: Text('© 2026 ${AppInfo.name} ${AppInfo.version}',
-                      style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    '© 2026 ${AppInfo.name} ${AppInfo.version}',
+                    style: style,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                if (trailing != null) ...[const SizedBox(width: 6), Flexible(child: trailing!)],
+                if (trailing != null) ...[
+                  const SizedBox(width: 6),
+                  Flexible(child: trailing!),
+                ],
               ],
             ),
           ),
@@ -218,7 +234,12 @@ class NcFooter extends StatelessWidget {
           Flexible(
             flex: 2,
             child: onAuthorTap == null
-                ? Text('Designed by NotCode', style: style, maxLines: 1, overflow: TextOverflow.ellipsis)
+                ? Text(
+                    'Designed by NotCode',
+                    style: style,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
                 // Сдвиг вправо на ширину пробела — текст стоит на отступе 24, как слева.
                 : Transform.translate(
                     offset: Offset(space, 0),
@@ -226,8 +247,12 @@ class NcFooter extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Flexible(
-                          child: Text('Designed by',
-                              style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          child: Text(
+                            'Designed by',
+                            style: style,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         NcQuietButton(
                           label: 'NotCode',

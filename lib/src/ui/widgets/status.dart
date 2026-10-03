@@ -24,12 +24,12 @@ enum Tone {
 
 extension ToneColor on Tone {
   Color color(Palette p) => switch (this) {
-        Tone.success => p.success,
-        Tone.warning => p.warning,
-        Tone.info => p.info,
-        Tone.danger => p.danger,
-        Tone.neutral => p.muted,
-      };
+    Tone.success => p.success,
+    Tone.warning => p.warning,
+    Tone.info => p.info,
+    Tone.danger => p.danger,
+    Tone.neutral => p.muted,
+  };
 }
 
 /// Строка статуса — точка 7 pt и подпись 12,5 pt 500 того же цвета.
@@ -150,7 +150,9 @@ class _NoticeRowState extends State<NoticeRow> {
         : p.muted;
 
     return Pressable(
-      onTap: widget.detail == null ? null : () => setState(() => _expanded = !_expanded),
+      onTap: widget.detail == null
+          ? null
+          : () => setState(() => _expanded = !_expanded),
       cursor: SystemMouseCursors.click,
       builder: (context, s) => AnimatedContainer(
         duration: NcMotion.hover,
@@ -176,7 +178,9 @@ class _NoticeRowState extends State<NoticeRow> {
                       maxLines: _expanded ? null : 1,
                       overflow: _expanded ? null : TextOverflow.ellipsis,
                       style: NcType.button.copyWith(
-                          fontWeight: FontWeight.w600, color: titleColor),
+                        fontWeight: FontWeight.w600,
+                        color: titleColor,
+                      ),
                     ),
                     if (widget.detail != null) ...[
                       const SizedBox(height: 2),
@@ -191,7 +195,10 @@ class _NoticeRowState extends State<NoticeRow> {
                 ),
               ),
             ),
-            if (widget.action != null) ...[const SizedBox(width: 10), widget.action!],
+            if (widget.action != null) ...[
+              const SizedBox(width: 10),
+              widget.action!,
+            ],
             if (widget.onClose != null) ...[
               const SizedBox(width: 4),
               _CloseButton(onTap: widget.onClose!, color: p.muted),
@@ -222,7 +229,9 @@ class _CloseButton extends StatelessWidget {
           height: 28,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: s.hovered ? p.text.withValues(alpha: .06) : p.text.withValues(alpha: 0),
+            color: s.hovered
+                ? p.text.withValues(alpha: .06)
+                : p.text.withValues(alpha: 0),
           ),
           child: Icon(LucideIcons.x, size: 16, color: color),
         ),

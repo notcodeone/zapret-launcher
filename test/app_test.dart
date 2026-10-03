@@ -8,6 +8,7 @@ import 'package:zapret_launcher/src/app.dart';
 import 'package:zapret_launcher/src/controller.dart';
 
 import 'helpers.dart';
+
 import 'package:zapret_launcher/src/settings.dart';
 import 'package:zapret_launcher/src/ui/ui.dart';
 import 'package:zapret_launcher/src/zapret/bundle.dart';
@@ -60,10 +61,12 @@ class _FakeProbeEnv implements ProbeEnvironment {
 
   @override
   Future<TargetResult> check(ProbeTarget t) async => TargetResult(
-        t,
-        (_open[_running] ?? const {}).contains(t.group) ? ProbeOutcome.ok : ProbeOutcome.blocked,
-        latency: const Duration(milliseconds: 90),
-      );
+    t,
+    (_open[_running] ?? const {}).contains(t.group)
+        ? ProbeOutcome.ok
+        : ProbeOutcome.blocked,
+    latency: const Duration(milliseconds: 90),
+  );
 
   @override
   void abort() {}
@@ -75,8 +78,12 @@ void main() {
   setUp(() => tmp = Directory.systemTemp.createTempSync('zl-app-'));
   tearDown(() => tmp.deleteSync(recursive: true));
 
-  Future<AppController> pumpApp(WidgetTester tester,
-      {String? zapretDir, String? route, ProbeEnvironment? probe}) async {
+  Future<AppController> pumpApp(
+    WidgetTester tester, {
+    String? zapretDir,
+    String? route,
+    ProbeEnvironment? probe,
+  }) async {
     final store = SettingsStore(path: p.join(tmp.path, 'settings.json'));
     if (zapretDir != null) store.save(AppSettings(zapretDir: zapretDir));
     final toasts = ToastController();
@@ -93,7 +100,9 @@ void main() {
     )..init();
     tester.view.physicalSize = const Size(560, 640);
     tester.view.devicePixelRatio = 1;
-    await tester.pumpWidget(ZapretLauncherApp(controller: c, initialRoute: route));
+    await tester.pumpWidget(
+      ZapretLauncherApp(controller: c, initialRoute: route),
+    );
     await tester.pumpAndSettle();
     return c;
   }
@@ -105,16 +114,22 @@ void main() {
     tester.view.reset();
   }
 
-  testWidgets('без zapret — предлагает скачать или указать папку', (tester) async {
-    final c = await pumpApp(tester, zapretDir: p.join(tmp.path, 'nothing-here'));
+  testWidgets('без zapret — предлагает скачать или указать папку', (
+    tester,
+  ) async {
+    final c = await pumpApp(
+      tester,
+      zapretDir: p.join(tmp.path, 'nothing-here'),
+    );
     expect(c.install, isNull);
     expect(find.text('Zapret не установлен'), findsOneWidget);
     expect(find.text('Указать папку'), findsOneWidget);
-    expect(find.text('Обход блокировок'), findsOneWidget);
     await dispose(tester, c);
   });
 
-  testWidgets('с zapret — статус, стратегия и переход в настройки', (tester) async {
+  testWidgets('с zapret — статус, стратегия и переход в настройки', (
+    tester,
+  ) async {
     final root = Directory(p.join(tmp.path, 'zapret'))..createSync();
     File(p.join(root.path, 'bin', 'winws.exe')).createSync(recursive: true);
     File(p.join(root.path, 'general (ALT3).bat'))
@@ -124,9 +139,11 @@ void main() {
       ..writeAsStringSync('203.0.113.113/32\r\n');
 
     final c = await pumpApp(tester, zapretDir: root.path);
-    expect(find.text('Выключен'), findsOneWidget);
+    // Главное — крупно: состояние и одна кнопка; стратегия — строкой под ними.
+    expect(find.text('Zapret выключен'), findsOneWidget);
     expect(find.textContaining('«ALT3»'), findsOneWidget);
     expect(find.text('Включить'), findsOneWidget);
+    expect(find.text('Игровой фильтр и IPSet'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Настройки'));
     await tester.pumpAndSettle();
@@ -142,7 +159,9 @@ void main() {
         .writeAsStringSync('start "z" /min "%BIN%winws.exe" --wf-tcp=80\r\n');
     final listFile = File(p.join(root.path, 'lists', 'list-general-user.txt'))
       ..createSync(recursive: true)
-      ..writeAsStringSync('# Never leave this file empty\r\ndomain.example.abc\r\n');
+      ..writeAsStringSync(
+        '# Never leave this file empty\r\ndomain.example.abc\r\n',
+      );
 
     final c = await pumpApp(tester, zapretDir: root.path, route: '/lists');
     expect(find.text('Здесь пока пусто'), findsOneWidget);
@@ -150,17 +169,26 @@ void main() {
     await tester.tap(find.text('Добавить'));
     await tester.pumpAndSettle();
     await tester.enterText(
-        find.byType(TextField), 'https://Example.com/page\nпрезидент.рф, не домен!');
+      find.byType(TextField),
+      'https://Example.com/page\nпрезидент.рф, не домен!',
+    );
     await tester.pump();
     expect(find.textContaining('Не похоже на домен: не'), findsOneWidget);
     expect(find.text('Будет добавлено: 2 сайта'), findsOneWidget);
-    await tester.tap(find.descendant(of: find.byType(NcDialogFrame), matching: find.text('Добавить')));
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NcDialogFrame),
+        matching: find.text('Добавить'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('президент.рф'), findsOneWidget);
     expect(find.text('xn--d1abbgf6aiiy.xn--p1ai'), findsOneWidget);
-    expect(listFile.readAsStringSync(),
-        '# Never leave this file empty\r\nexample.com\r\nxn--d1abbgf6aiiy.xn--p1ai\r\n');
+    expect(
+      listFile.readAsStringSync(),
+      '# Never leave this file empty\r\nexample.com\r\nxn--d1abbgf6aiiy.xn--p1ai\r\n',
+    );
 
     // Убрать и вернуть из оповещения.
     await tester.tap(find.byTooltip('Убрать').first);
@@ -168,8 +196,10 @@ void main() {
     expect(listFile.readAsStringSync(), isNot(contains('example.com\r\n')));
     await tester.tap(find.text('Вернуть'));
     await tester.pumpAndSettle();
-    expect(listFile.readAsStringSync(),
-        '# Never leave this file empty\r\nexample.com\r\nxn--d1abbgf6aiiy.xn--p1ai\r\n');
+    expect(
+      listFile.readAsStringSync(),
+      '# Never leave this file empty\r\nexample.com\r\nxn--d1abbgf6aiiy.xn--p1ai\r\n',
+    );
 
     // Вкладка исключений — свой файл.
     await tester.tap(find.text('Не трогать'));
@@ -186,8 +216,12 @@ void main() {
           .writeAsStringSync('start "z" /min "%BIN%winws.exe" --wf-tcp=80\r\n');
     }
     final gate = Completer<void>();
-    final c = await pumpApp(tester,
-        zapretDir: root.path, route: '/autopick', probe: _FakeProbeEnv(gate));
+    final c = await pumpApp(
+      tester,
+      zapretDir: root.path,
+      route: '/autopick',
+      probe: _FakeProbeEnv(gate),
+    );
     expect(find.text('Что проверяем'), findsOneWidget);
     expect(find.text('Начать'), findsOneWidget);
 

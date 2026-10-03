@@ -80,7 +80,10 @@ class NcButton extends StatelessWidget {
       case NcButtonKind.primary:
         bg = p.primary;
         fg = p.onPrimary;
-        bgHover = Color.alphaBlend(p.onPrimary.withValues(alpha: .07), p.primary);
+        bgHover = Color.alphaBlend(
+          p.onPrimary.withValues(alpha: .07),
+          p.primary,
+        );
       case NcButtonKind.secondary:
         bg = p.field.withValues(alpha: 0);
         fg = p.text;
@@ -88,13 +91,19 @@ class NcButton extends StatelessWidget {
       case NcButtonKind.danger:
         bg = p.dangerSurface;
         fg = p.danger;
-        bgHover = Color.alphaBlend(p.danger.withValues(alpha: .07), p.dangerSurface);
+        bgHover = Color.alphaBlend(
+          p.danger.withValues(alpha: .07),
+          p.dangerSurface,
+        );
       case NcButtonKind.gray:
         bg = p.field;
         fg = p.text;
         bgHover = Color.alphaBlend(p.text.withValues(alpha: .07), p.field);
     }
-    Color bgPressed = Color.alphaBlend(fg.withValues(alpha: .10), bg.a == 0 ? p.field : bg);
+    Color bgPressed = Color.alphaBlend(
+      fg.withValues(alpha: .10),
+      bg.a == 0 ? p.field : bg,
+    );
 
     if (!enabled && !loading) {
       bg = p.field;
@@ -110,8 +119,8 @@ class NcButton extends StatelessWidget {
     final padding = large
         ? const EdgeInsets.symmetric(horizontal: 18)
         : kind == NcButtonKind.gray
-            ? const EdgeInsets.symmetric(horizontal: 14)
-            : const EdgeInsets.symmetric(horizontal: 16);
+        ? const EdgeInsets.symmetric(horizontal: 14)
+        : const EdgeInsets.symmetric(horizontal: 16);
 
     return Pressable(
       onTap: enabled ? onPressed : null,
@@ -143,8 +152,12 @@ class NcButton extends StatelessWidget {
                 child: Icon(icon, size: 18, color: fg),
               ),
             Flexible(
-              child: Text(label,
-                  style: textStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(
+                label,
+                style: textStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -199,8 +212,8 @@ class NcIconButton extends StatelessWidget {
             color: s.pressed
                 ? Color.alphaBlend(p.text.withValues(alpha: .05), p.field)
                 : s.hovered
-                    ? p.field
-                    : p.field.withValues(alpha: 0),
+                ? p.field
+                : p.field.withValues(alpha: 0),
             border: s.focused ? Border.all(color: p.primary, width: 2) : null,
           ),
           child: Stack(
@@ -213,7 +226,10 @@ class NcIconButton extends StatelessWidget {
                     ? SizedBox.square(
                         key: const ValueKey('busy'),
                         dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: p.text),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: p.text,
+                        ),
                       )
                     : Icon(
                         icon,
@@ -274,12 +290,12 @@ class NcQuietButton extends StatelessWidget {
   final String? semanticLabel;
 
   /// Ширина пробела в [style] — для [horizontalPadding].
-  static double spaceWidth(BuildContext context, TextStyle style) => (TextPainter(
+  static double spaceWidth(BuildContext context, TextStyle style) =>
+      (TextPainter(
         text: TextSpan(text: ' ', style: style),
         textDirection: TextDirection.ltr,
         textScaler: MediaQuery.textScalerOf(context),
-      )..layout())
-          .width;
+      )..layout()).width;
 
   @override
   Widget build(BuildContext context) {
@@ -289,20 +305,24 @@ class NcQuietButton extends StatelessWidget {
       semanticLabel: semanticLabel ?? label,
       builder: (context, s) => AnimatedContainer(
         duration: NcMotion.hover,
-        padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 2),
+        padding: EdgeInsets.symmetric(
+          horizontal: horizontalPadding,
+          vertical: 2,
+        ),
         decoration: BoxDecoration(
           color: s.pressed
               ? Color.alphaBlend(p.text.withValues(alpha: .05), p.field)
               : s.hovered
-                  ? p.field
-                  : p.field.withValues(alpha: 0),
+              ? p.field
+              : p.field.withValues(alpha: 0),
           borderRadius: BorderRadius.circular(NcRadius.tag),
         ),
         child: Text(
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: style ??
+          style:
+              style ??
               NcType.caption.copyWith(
                 color: color ?? p.text,
                 fontWeight: FontWeight.w500,

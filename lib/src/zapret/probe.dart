@@ -13,8 +13,10 @@ class ProbeTarget {
 
   /// Сервис, к которому относится сайт: Discord, YouTube, Google, Cloudflare…
   String get group {
-    final m = RegExp(r'^(Discord|YouTube|Google|Cloudflare|Telegram)', caseSensitive: false)
-        .firstMatch(name);
+    final m = RegExp(
+      r'^(Discord|YouTube|Google|Cloudflare|Telegram)',
+      caseSensitive: false,
+    ).firstMatch(name);
     if (m == null) return 'Другие';
     final g = m[1]!.toLowerCase();
     return const {
@@ -39,7 +41,10 @@ final defaultProbeTargets = [
   ProbeTarget('YouTubeWeb', Uri.parse('https://www.youtube.com')),
   ProbeTarget('YouTubeShort', Uri.parse('https://youtu.be')),
   ProbeTarget('YouTubeImage', Uri.parse('https://i.ytimg.com')),
-  ProbeTarget('YouTubeVideoRedirect', Uri.parse('https://redirector.googlevideo.com')),
+  ProbeTarget(
+    'YouTubeVideoRedirect',
+    Uri.parse('https://redirector.googlevideo.com'),
+  ),
   ProbeTarget('GoogleMain', Uri.parse('https://www.google.com')),
   ProbeTarget('GoogleGstatic', Uri.parse('https://www.gstatic.com')),
   ProbeTarget('CloudflareWeb', Uri.parse('https://www.cloudflare.com')),
@@ -82,7 +87,13 @@ enum ProbeOutcome {
 }
 
 class TargetResult {
-  const TargetResult(this.target, this.outcome, {this.latency, this.bytes = 0, this.detail});
+  const TargetResult(
+    this.target,
+    this.outcome, {
+    this.latency,
+    this.bytes = 0,
+    this.detail,
+  });
 
   final ProbeTarget target;
   final ProbeOutcome outcome;
@@ -127,7 +138,8 @@ class HttpProber {
       ..idleTimeout = const Duration(seconds: 1)
       ..autoUncompress = false
       ..findProxy = ((_) => 'DIRECT')
-      ..userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+      ..userAgent =
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
           '(KHTML, like Gecko) Chrome/140.0 Safari/537.36';
     _clients.add(client);
     final sw = Stopwatch()..start();
@@ -144,17 +156,43 @@ class HttpProber {
         bytes += chunk.length;
         if (bytes >= readLimit) break;
       }
-      return TargetResult(target, ProbeOutcome.ok, latency: firstByte, bytes: bytes);
+      return TargetResult(
+        target,
+        ProbeOutcome.ok,
+        latency: firstByte,
+        bytes: bytes,
+      );
     } on HandshakeException catch (e) {
       final msg = e.toString();
       if (msg.contains('CERTIFICATE')) {
-        return TargetResult(target, ProbeOutcome.spoofed, detail: 'Чужой сертификат');
+        return TargetResult(
+          target,
+          ProbeOutcome.spoofed,
+          detail: 'Чужой сертификат',
+        );
       }
-      return TargetResult(target, ProbeOutcome.blocked, detail: 'TLS не установился');
+      return TargetResult(
+        target,
+        ProbeOutcome.blocked,
+        detail: 'TLS не установился',
+      );
     } on SocketException catch (e) {
-      final lookup = e.message.contains('lookup') || (e.osError?.errorCode == 11001);
-      if (lookup) return TargetResult(target, ProbeOutcome.noHost, detail: 'Адрес не найден');
-      return _interrupted(target, firstByte, bytes, sw, e.osError?.message ?? e.message);
+      final lookup =
+          e.message.contains('lookup') || (e.osError?.errorCode == 11001);
+      if (lookup) {
+        return TargetResult(
+          target,
+          ProbeOutcome.noHost,
+          detail: 'Адрес не найден',
+        );
+      }
+      return _interrupted(
+        target,
+        firstByte,
+        bytes,
+        sw,
+        e.osError?.message ?? e.message,
+      );
     } on HttpException catch (e) {
       return _interrupted(target, firstByte, bytes, sw, e.message);
     } on Object catch (e) {
@@ -167,20 +205,37 @@ class HttpProber {
   }
 
   TargetResult _interrupted(
-      ProbeTarget target, Duration? firstByte, int bytes, Stopwatch sw, String detail) {
+    ProbeTarget target,
+    Duration? firstByte,
+    int bytes,
+    Stopwatch sw,
+    String detail,
+  ) {
     if (firstByte != null && bytes > 0) {
-      return TargetResult(target, ProbeOutcome.stalled,
-          latency: firstByte, bytes: bytes, detail: 'Обрывается после ${bytes ~/ 1024} КБ');
+      return TargetResult(
+        target,
+        ProbeOutcome.stalled,
+        latency: firstByte,
+        bytes: bytes,
+        detail: 'Обрывается после ${bytes ~/ 1024} КБ',
+      );
     }
     final timedOut = sw.elapsed >= timeout - const Duration(milliseconds: 100);
-    return TargetResult(target, ProbeOutcome.blocked,
-        detail: timedOut ? 'Нет ответа за ${timeout.inSeconds} с' : detail);
+    return TargetResult(
+      target,
+      ProbeOutcome.blocked,
+      detail: timedOut ? 'Нет ответа за ${timeout.inSeconds} с' : detail,
+    );
   }
 }
 
 /// Результат одной стратегии (или проверки без обхода, если [strategy] == null).
 class StrategyResult {
-  const StrategyResult({required this.strategy, required this.targets, this.failedToStart = false});
+  const StrategyResult({
+    required this.strategy,
+    required this.targets,
+    this.failedToStart = false,
+  });
 
   final Strategy? strategy;
   final List<TargetResult> targets;
@@ -193,9 +248,14 @@ class StrategyResult {
 
   /// Средняя задержка по открывшимся сайтам — для выбора среди равных.
   Duration get averageLatency {
-    final l = [for (final t in targets) if (t.ok && t.latency != null) t.latency!];
+    final l = [
+      for (final t in targets)
+        if (t.ok && t.latency != null) t.latency!,
+    ];
     if (l.isEmpty) return const Duration(days: 1);
-    return Duration(microseconds: l.fold<int>(0, (s, d) => s + d.inMicroseconds) ~/ l.length);
+    return Duration(
+      microseconds: l.fold<int>(0, (s, d) => s + d.inMicroseconds) ~/ l.length,
+    );
   }
 
   /// Сколько сайтов сервиса открылось и сколько всего.
@@ -231,7 +291,13 @@ abstract interface class ProbeEnvironment {
 }
 
 class AutoPickProgress {
-  const AutoPickProgress({required this.index, required this.total, this.current, this.baseline, required this.results});
+  const AutoPickProgress({
+    required this.index,
+    required this.total,
+    this.current,
+    this.baseline,
+    required this.results,
+  });
 
   /// Сколько стратегий уже проверено.
   final int index;
@@ -244,7 +310,11 @@ class AutoPickProgress {
 }
 
 class AutoPickReport {
-  const AutoPickReport({required this.baseline, required this.results, required this.cancelled});
+  const AutoPickReport({
+    required this.baseline,
+    required this.results,
+    required this.cancelled,
+  });
 
   final StrategyResult baseline;
 
@@ -282,7 +352,11 @@ class NoInternetException implements Exception {
 
 /// Перебор стратегий: сначала проверка без обхода, затем каждая стратегия по очереди.
 class AutoPick {
-  AutoPick({required this.env, required this.strategies, required this.targets});
+  AutoPick({
+    required this.env,
+    required this.strategies,
+    required this.targets,
+  });
 
   final ProbeEnvironment env;
   final List<Strategy> strategies;
@@ -297,16 +371,25 @@ class AutoPick {
     env.abort();
   }
 
-  Future<List<TargetResult>> _checkAll() => Future.wait([for (final t in targets) env.check(t)]);
+  Future<List<TargetResult>> _checkAll() =>
+      Future.wait([for (final t in targets) env.check(t)]);
 
-  Future<AutoPickReport> run({void Function(AutoPickProgress progress)? onProgress}) async {
+  Future<AutoPickReport> run({
+    void Function(AutoPickProgress progress)? onProgress,
+  }) async {
     final results = <StrategyResult>[];
-    onProgress?.call(AutoPickProgress(index: 0, total: strategies.length, results: results));
+    onProgress?.call(
+      AutoPickProgress(index: 0, total: strategies.length, results: results),
+    );
 
     await env.stop();
     final baseline = StrategyResult(strategy: null, targets: await _checkAll());
     if (_cancelled) {
-      return AutoPickReport(baseline: baseline, results: results, cancelled: true);
+      return AutoPickReport(
+        baseline: baseline,
+        results: results,
+        cancelled: true,
+      );
     }
     // Ни один адрес не нашёлся — дело не в блокировках, а в сети.
     if (baseline.targets.every((t) => t.outcome == ProbeOutcome.noHost)) {
@@ -314,20 +397,39 @@ class AutoPick {
     }
     // Всё открывается и так — сравнивать стратегии не с чем.
     if (baseline.okCount == baseline.total) {
-      onProgress?.call(AutoPickProgress(
-          index: 0, total: strategies.length, baseline: baseline, results: results));
-      return AutoPickReport(baseline: baseline, results: results, cancelled: false);
+      onProgress?.call(
+        AutoPickProgress(
+          index: 0,
+          total: strategies.length,
+          baseline: baseline,
+          results: results,
+        ),
+      );
+      return AutoPickReport(
+        baseline: baseline,
+        results: results,
+        cancelled: false,
+      );
     }
 
     for (var i = 0; i < strategies.length; i++) {
       final s = strategies[i];
-      onProgress?.call(AutoPickProgress(
-          index: i, total: strategies.length, current: s, baseline: baseline, results: results));
+      onProgress?.call(
+        AutoPickProgress(
+          index: i,
+          total: strategies.length,
+          current: s,
+          baseline: baseline,
+          results: results,
+        ),
+      );
       try {
         final started = await env.start(s);
         if (_cancelled) break;
         if (!started) {
-          results.add(StrategyResult(strategy: s, targets: const [], failedToStart: true));
+          results.add(
+            StrategyResult(strategy: s, targets: const [], failedToStart: true),
+          );
           continue;
         }
         final checked = await _checkAll();
@@ -337,8 +439,18 @@ class AutoPick {
         await env.stop();
       }
     }
-    onProgress?.call(AutoPickProgress(
-        index: results.length, total: strategies.length, baseline: baseline, results: results));
-    return AutoPickReport(baseline: baseline, results: results, cancelled: _cancelled);
+    onProgress?.call(
+      AutoPickProgress(
+        index: results.length,
+        total: strategies.length,
+        baseline: baseline,
+        results: results,
+      ),
+    );
+    return AutoPickReport(
+      baseline: baseline,
+      results: results,
+      cancelled: _cancelled,
+    );
   }
 }

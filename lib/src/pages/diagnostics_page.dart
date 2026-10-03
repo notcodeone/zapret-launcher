@@ -32,27 +32,30 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
   Future<bool> _confirm(DiagnosticFix fix) {
     return switch (fix) {
       RemoveServicesFix(:final services) => showNcDialog(
-          context,
-          title: 'Удалить ${services.join(', ')}?',
-          message: 'Службы остановятся и удалятся из Windows. Если вы пользуетесь этими '
-              'программами, они перестанут работать.',
-          confirmLabel: 'Удалить',
-          danger: true,
-        ),
+        context,
+        title: 'Удалить ${services.join(', ')}?',
+        message:
+            'Службы остановятся и удалятся из Windows. Если вы пользуетесь этими '
+            'программами, они перестанут работать.',
+        confirmLabel: 'Удалить',
+        danger: true,
+      ),
       HostsBlockFix() => showNcDialog(
-          context,
-          title: 'Изменить hosts?',
-          message: 'В файл hosts добавятся адреса из репозитория zapret: GitHub, Telegram и '
-              'голосовые каналы Discord. Прежний файл сохранится рядом — hosts.zapret-launcher.bak.',
-          confirmLabel: fix.label,
-        ),
+        context,
+        title: 'Изменить hosts?',
+        message:
+            'В файл hosts добавятся адреса из репозитория zapret: GitHub, Telegram и '
+            'голосовые каналы Discord. Прежний файл сохранится рядом — hosts.zapret-launcher.bak.',
+        confirmLabel: fix.label,
+      ),
       ReinstallFix() => showNcDialog(
-          context,
-          title: 'Переустановить zapret?',
-          message: 'Лаунчер скачает zapret заново. Ваши списки и настройки сохранятся. '
-              'Если файлы удалил антивирус, сначала добавьте папку zapret в его исключения.',
-          confirmLabel: 'Переустановить',
-        ),
+        context,
+        title: 'Переустановить zapret?',
+        message:
+            'Лаунчер скачает zapret заново. Ваши списки и настройки сохранятся. '
+            'Если файлы удалил антивирус, сначала добавьте папку zapret в его исключения.',
+        confirmLabel: 'Переустановить',
+      ),
       _ => Future.value(true),
     };
   }
@@ -72,26 +75,35 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
     final c = AppScope.of(context);
     final p = context.palette;
     final results = c.diagnostics;
-    final attention = [for (final r in results ?? const <DiagnosticResult>[]) if (r.level != CheckLevel.ok) r]
-      ..sort((a, b) => b.level.index.compareTo(a.level.index));
-    final fine = [for (final r in results ?? const <DiagnosticResult>[]) if (r.level == CheckLevel.ok) r];
+    final attention = [
+      for (final r in results ?? const <DiagnosticResult>[])
+        if (r.level != CheckLevel.ok) r,
+    ]..sort((a, b) => b.level.index.compareTo(a.level.index));
+    final fine = [
+      for (final r in results ?? const <DiagnosticResult>[])
+        if (r.level == CheckLevel.ok) r,
+    ];
     final idle = c.busy == null;
 
-    bool fixEnabled(DiagnosticFix fix) => idle && (fix is OpenFix || c.elevated);
+    bool fixEnabled(DiagnosticFix fix) =>
+        idle && (fix is OpenFix || c.elevated);
 
     var i = 0;
     return NcPage(
-      header: appHeader(context, c,
-          title: 'Диагностика',
-          onBack: () => Navigator.of(context).pop(),
-          actions: [
-            NcIconButton(
-              icon: LucideIcons.refreshCw,
-              tooltip: 'Проверить ещё раз',
-              busy: c.diagnosing,
-              onPressed: c.runDiagnostics,
-            ),
-          ]),
+      header: appHeader(
+        context,
+        c,
+        title: 'Диагностика',
+        onBack: () => Navigator.of(context).pop(),
+        actions: [
+          NcIconButton(
+            icon: LucideIcons.refreshCw,
+            tooltip: 'Проверить ещё раз',
+            busy: c.diagnosing,
+            onPressed: c.runDiagnostics,
+          ),
+        ],
+      ),
       footer: appFooter(c),
       children: [
         ...importantRows(context, c),
@@ -99,7 +111,8 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
           index: i++,
           child: const PageTitle(
             'Диагностика',
-            description: 'Что может мешать zapret — те же проверки, что в service.bat.',
+            description:
+                'Что может мешать zapret — те же проверки, что в service.bat.',
           ),
         ),
         const SizedBox(height: 24),
@@ -111,7 +124,10 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
                 children: [
                   SizedBox.square(
                     dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: p.text),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: p.text,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Text('Проверяю систему…', style: NcType.rowTitle),
@@ -129,15 +145,25 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
                     Container(
                       width: 40,
                       height: 40,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: p.success),
-                      child: const Icon(LucideIcons.check, size: 20, color: Colors.white),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: p.success,
+                      ),
+                      child: const Icon(
+                        LucideIcons.check,
+                        size: 20,
+                        color: Colors.white,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Ничего не мешает', style: NcType.rowTitle),
+                          const Text(
+                            'Ничего не мешает',
+                            style: NcType.rowTitle,
+                          ),
                           const SizedBox(height: 2),
                           Text(
                             'Если сайты всё равно не открываются — подберите другую стратегию.',
@@ -155,31 +181,35 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
             const SizedBox(height: 12),
             Appear(
               index: i++,
-              child: NcSettingsCard(children: [
-                for (final r in attention)
-                  NcSettingRow(
-                    title: r.title,
-                    description: r.detail,
-                    below: StatusLine(
-                      tone: switch (r.level) {
-                        CheckLevel.problem => Tone.danger,
-                        CheckLevel.warning => Tone.warning,
-                        _ => Tone.neutral,
-                      },
-                      text: switch (r.level) {
-                        CheckLevel.problem => 'Мешает',
-                        CheckLevel.warning => 'Стоит проверить',
-                        _ => 'К сведению',
-                      },
+              child: NcSettingsCard(
+                children: [
+                  for (final r in attention)
+                    NcSettingRow(
+                      title: r.title,
+                      description: r.detail,
+                      below: StatusLine(
+                        tone: switch (r.level) {
+                          CheckLevel.problem => Tone.danger,
+                          CheckLevel.warning => Tone.warning,
+                          _ => Tone.neutral,
+                        },
+                        text: switch (r.level) {
+                          CheckLevel.problem => 'Мешает',
+                          CheckLevel.warning => 'Стоит проверить',
+                          _ => 'К сведению',
+                        },
+                      ),
+                      trailing: r.fix == null
+                          ? null
+                          : NcButton.gray(
+                              label: r.fix!.label,
+                              onPressed: fixEnabled(r.fix!)
+                                  ? () => _fix(c, r.fix!)
+                                  : null,
+                            ),
                     ),
-                    trailing: r.fix == null
-                        ? null
-                        : NcButton.gray(
-                            label: r.fix!.label,
-                            onPressed: fixEnabled(r.fix!) ? () => _fix(c, r.fix!) : null,
-                          ),
-                  ),
-              ]),
+                ],
+              ),
             ),
           ],
           if (fine.isNotEmpty) ...[
@@ -188,14 +218,20 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
             const SizedBox(height: 12),
             Appear(
               index: i++,
-              child: NcSettingsCard(children: [
-                for (final r in fine)
-                  NcSettingRow(
-                    title: r.title,
-                    description: r.detail,
-                    trailing: Icon(LucideIcons.check, size: 20, color: p.success),
-                  ),
-              ]),
+              child: NcSettingsCard(
+                children: [
+                  for (final r in fine)
+                    NcSettingRow(
+                      title: r.title,
+                      description: r.detail,
+                      trailing: Icon(
+                        LucideIcons.check,
+                        size: 20,
+                        color: p.success,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ],
         ],
@@ -204,26 +240,20 @@ class _DiagnosticsPageState extends State<DiagnosticsPage> {
         const SizedBox(height: 12),
         Appear(
           index: i++,
-          child: NcSettingsCard(children: [
-            NcSettingRow(
-              title: 'Кэш Discord',
-              description: 'Помогает, если после включения zapret Discord не грузится '
-                  'или висит на подключении.',
-              trailing: NcButton.gray(
-                label: 'Очистить',
-                onPressed: idle ? () => _clearDiscord(c) : null,
+          child: NcSettingsCard(
+            children: [
+              NcSettingRow(
+                title: 'Кэш Discord',
+                description:
+                    'Помогает, если после включения zapret Discord не грузится '
+                    'или висит на подключении.',
+                trailing: NcButton.gray(
+                  label: 'Очистить',
+                  onPressed: idle ? () => _clearDiscord(c) : null,
+                ),
               ),
-            ),
-            NcSettingRow(
-              title: 'Список адресов IPSet',
-              description: 'Свежие адреса серверов из репозитория zapret.',
-              trailing: NcButton.gray(
-                label: 'Обновить',
-                loading: c.busy?.kind == 'ipset',
-                onPressed: idle && c.install != null ? c.updateIpsetList : null,
-              ),
-            ),
-          ]),
+            ],
+          ),
         ),
       ],
     );

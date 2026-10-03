@@ -6,7 +6,12 @@ import '../app_info.dart';
 
 /// Провайдер, через которого компьютер выходит в интернет: номер AS и название.
 /// Как блокировать — решает провайдер, поэтому и стратегия у каждого своя.
-typedef ProviderResult = ({String asn, String? isp, String? country, String source});
+typedef ProviderResult = ({
+  String asn,
+  String? isp,
+  String? country,
+  String source,
+});
 typedef ProviderLookup = Future<ProviderResult> Function();
 
 /// Сервис, который по IP называет провайдера. Без ключей.
@@ -15,7 +20,10 @@ class ProviderSource {
 
   final String name;
   final String url;
-  final ({String? asn, String? isp, String? country}) Function(Map<String, dynamic> json) parse;
+  final ({String? asn, String? isp, String? country}) Function(
+    Map<String, dynamic> json,
+  )
+  parse;
 
   static const all = [
     ProviderSource(
@@ -27,16 +35,24 @@ class ProviderSource {
   ];
 
   /// `{"success": true, "country_code": "RU", "connection": {"asn": 12389, "isp": "Rostelecom"}}`
-  static ({String? asn, String? isp, String? country}) _ipwho(Map<String, dynamic> json) {
+  static ({String? asn, String? isp, String? country}) _ipwho(
+    Map<String, dynamic> json,
+  ) {
     if (json['success'] == false) return (asn: null, isp: null, country: null);
     final c = json['connection'];
     final asn = c is Map ? c['asn'] : null;
     final isp = c is Map ? (c['isp'] ?? c['org']) as String? : null;
-    return (asn: asn == null ? null : 'AS$asn', isp: isp, country: json['country_code'] as String?);
+    return (
+      asn: asn == null ? null : 'AS$asn',
+      isp: isp,
+      country: json['country_code'] as String?,
+    );
   }
 
   /// `{"asn": "AS12389", "org": "Rostelecom", "country_code": "RU"}`
-  static ({String? asn, String? isp, String? country}) _ipapi(Map<String, dynamic> json) {
+  static ({String? asn, String? isp, String? country}) _ipapi(
+    Map<String, dynamic> json,
+  ) {
     if (json['error'] == true) return (asn: null, isp: null, country: null);
     return (
       asn: json['asn'] as String?,
@@ -49,7 +65,10 @@ class ProviderSource {
 /// Номер AS в одном виде: «AS12389».
 String? normalizeAsn(String? raw) {
   if (raw == null) return null;
-  final m = RegExp(r'^(?:AS)?(\d+)$', caseSensitive: false).firstMatch(raw.trim());
+  final m = RegExp(
+    r'^(?:AS)?(\d+)$',
+    caseSensitive: false,
+  ).firstMatch(raw.trim());
   return m == null ? null : 'AS${m[1]}';
 }
 
@@ -84,16 +103,20 @@ Future<ProviderResult> lookupProvider({
         settled = Completer<void>();
       }
       if (result.isCompleted) break;
-      asked.add(_ask(client, source, timeout).then(
-        (r) {
-          if (!result.isCompleted) result.complete(r);
-        },
-        onError: (Object e) {
-          errors.add('${source.name}: $e');
-        },
-      ).whenComplete(() {
-        if (!settled.isCompleted) settled.complete();
-      }));
+      asked.add(
+        _ask(client, source, timeout)
+            .then(
+              (r) {
+                if (!result.isCompleted) result.complete(r);
+              },
+              onError: (Object e) {
+                errors.add('${source.name}: $e');
+              },
+            )
+            .whenComplete(() {
+              if (!settled.isCompleted) settled.complete();
+            }),
+      );
     }
     await Future.any([result.future, Future.wait(asked)]);
     if (result.isCompleted) return await result.future;
@@ -103,11 +126,17 @@ Future<ProviderResult> lookupProvider({
   }
 }
 
-Future<ProviderResult> _ask(HttpClient client, ProviderSource source, Duration timeout) async {
+Future<ProviderResult> _ask(
+  HttpClient client,
+  ProviderSource source,
+  Duration timeout,
+) async {
   final request = await client.getUrl(Uri.parse(source.url)).timeout(timeout);
   final response = await request.close().timeout(timeout);
   final body = await utf8.decodeStream(response).timeout(timeout);
-  if (response.statusCode != HttpStatus.ok) throw Exception('HTTP ${response.statusCode}');
+  if (response.statusCode != HttpStatus.ok) {
+    throw Exception('HTTP ${response.statusCode}');
+  }
   final json = jsonDecode(body);
   if (json is! Map<String, dynamic>) throw const FormatException('не JSON');
   final parsed = source.parse(json);

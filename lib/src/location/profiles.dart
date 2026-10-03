@@ -42,30 +42,29 @@ class NetworkProfile {
     IpsetMode? ipset,
     bool? zapretOff,
     DateTime? lastSeen,
-  }) =>
-      NetworkProfile(
-        asn: asn,
-        name: name ?? this.name,
-        isp: isp ?? this.isp,
-        country: country ?? this.country,
-        strategy: strategy ?? this.strategy,
-        gameFilter: gameFilter ?? this.gameFilter,
-        ipset: ipset ?? this.ipset,
-        zapretOff: zapretOff ?? this.zapretOff,
-        lastSeen: lastSeen ?? this.lastSeen,
-      );
+  }) => NetworkProfile(
+    asn: asn,
+    name: name ?? this.name,
+    isp: isp ?? this.isp,
+    country: country ?? this.country,
+    strategy: strategy ?? this.strategy,
+    gameFilter: gameFilter ?? this.gameFilter,
+    ipset: ipset ?? this.ipset,
+    zapretOff: zapretOff ?? this.zapretOff,
+    lastSeen: lastSeen ?? this.lastSeen,
+  );
 
   Map<String, Object?> toJson() => {
-        'asn': asn,
-        'name': name,
-        'isp': isp,
-        'country': country,
-        'strategy': strategy,
-        'gameFilter': gameFilter.name,
-        'ipset': ipset.name,
-        'zapretOff': zapretOff,
-        'lastSeen': lastSeen.toIso8601String(),
-      };
+    'asn': asn,
+    'name': name,
+    'isp': isp,
+    'country': country,
+    'strategy': strategy,
+    'gameFilter': gameFilter.name,
+    'ipset': ipset.name,
+    'zapretOff': zapretOff,
+    'lastSeen': lastSeen.toIso8601String(),
+  };
 
   static NetworkProfile? fromJson(Object? raw) {
     if (raw is! Map) return null;
@@ -80,10 +79,15 @@ class NetworkProfile {
       isp: raw['isp'] as String?,
       country: raw['country'] as String?,
       strategy: raw['strategy'] as String?,
-      gameFilter: byName(GameFilterMode.values, raw['gameFilter'], GameFilterMode.disabled),
+      gameFilter: byName(
+        GameFilterMode.values,
+        raw['gameFilter'],
+        GameFilterMode.disabled,
+      ),
       ipset: byName(IpsetMode.values, raw['ipset'], IpsetMode.none),
       zapretOff: raw['zapretOff'] as bool? ?? false,
-      lastSeen: DateTime.tryParse(raw['lastSeen'] as String? ?? '') ?? DateTime.now(),
+      lastSeen:
+          DateTime.tryParse(raw['lastSeen'] as String? ?? '') ?? DateTime.now(),
     );
   }
 }
@@ -92,9 +96,20 @@ class NetworkProfile {
 String providerShortName(String? isp, String asn) {
   if (isp == null || isp.trim().isEmpty) return asn;
   var s = isp.trim();
-  s = s.replaceAll(RegExp(r'^(PJSC|OJSC|JSC|LLC|OOO|ООО|ПАО|АО|ZAO|CJSC)\s+', caseSensitive: false), '');
   s = s.replaceAll(
-      RegExp(r'[,\s]+(PJSC|OJSC|JSC|LLC|Ltd\.?|Inc\.?|GmbH|B\.V\.|networks?|telecom)$', caseSensitive: false), '');
+    RegExp(
+      r'^(PJSC|OJSC|JSC|LLC|OOO|ООО|ПАО|АО|ZAO|CJSC)\s+',
+      caseSensitive: false,
+    ),
+    '',
+  );
+  s = s.replaceAll(
+    RegExp(
+      r'[,\s]+(PJSC|OJSC|JSC|LLC|Ltd\.?|Inc\.?|GmbH|B\.V\.|networks?|telecom)$',
+      caseSensitive: false,
+    ),
+    '',
+  );
   s = s.replaceAll(RegExp(r'^"|"$'), '').trim();
   return s.isEmpty ? asn : s;
 }

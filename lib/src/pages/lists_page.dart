@@ -16,8 +16,9 @@ String plural(int n, String one, String few, String many) {
   return '$n $many';
 }
 
-String countLabel(UserListKind kind, int n) =>
-    kind.ip ? plural(n, 'адрес', 'адреса', 'адресов') : plural(n, 'сайт', 'сайта', 'сайтов');
+String countLabel(UserListKind kind, int n) => kind.ip
+    ? plural(n, 'адрес', 'адреса', 'адресов')
+    : plural(n, 'сайт', 'сайта', 'сайтов');
 
 /// Свои списки zapret: что обходить, что не трогать, какие адреса исключить.
 class ListsPage extends StatefulWidget {
@@ -48,12 +49,16 @@ class _ListsPageState extends State<ListsPage> {
     );
     if (entries == null || entries.isEmpty) return;
     final (added, existing) = c.addEntries(_kind, entries);
-    c.toasts.show(ToastData(
-      added == 0
-          ? (entries.length == 1 ? 'Уже есть в списке' : 'Всё это уже есть в списке')
-          : 'Добавлено: ${countLabel(_kind, added)}${existing > 0 ? ', уже были $existing' : ''}',
-      icon: LucideIcons.listPlus,
-    ));
+    c.toasts.show(
+      ToastData(
+        added == 0
+            ? (entries.length == 1
+                  ? 'Уже есть в списке'
+                  : 'Всё это уже есть в списке')
+            : 'Добавлено: ${countLabel(_kind, added)}${existing > 0 ? ', уже были $existing' : ''}',
+        icon: LucideIcons.listPlus,
+      ),
+    );
   }
 
   void _remove(AppController c, String entry) {
@@ -87,17 +92,25 @@ class _ListsPageState extends State<ListsPage> {
     final shown = filtered.take(_maxRows).toList();
 
     final description = switch (_kind) {
-      UserListKind.bypass => 'Zapret обходит блокировку этих сайтов и их поддоменов — '
-          'вдобавок к стандартному списку.',
-      UserListKind.exclude => 'Эти сайты zapret не трогает, даже если они есть в стандартном '
-          'списке. Помогает, если обход ломает какой-то сайт.',
-      UserListKind.ipExclude => 'Адреса и подсети, которые zapret не трогает в режиме IPSet. '
-          'Например, локальная сеть или сервер игры.',
+      UserListKind.bypass =>
+        'Zapret обходит блокировку этих сайтов и их поддоменов — '
+            'вдобавок к стандартному списку.',
+      UserListKind.exclude =>
+        'Эти сайты zapret не трогает, даже если они есть в стандартном '
+            'списке. Помогает, если обход ломает какой-то сайт.',
+      UserListKind.ipExclude =>
+        'Адреса и подсети, которые zapret не трогает в режиме IPSet. '
+            'Например, локальная сеть или сервер игры.',
     };
 
     var i = 0;
     return NcPage(
-      header: appHeader(context, c, title: 'Свои списки', onBack: () => Navigator.of(context).pop()),
+      header: appHeader(
+        context,
+        c,
+        title: 'Свои списки',
+        onBack: () => Navigator.of(context).pop(),
+      ),
       footer: appFooter(c),
       fab: NcFab(
         icon: LucideIcons.plus,
@@ -124,8 +137,7 @@ class _ListsPageState extends State<ListsPage> {
           index: i++,
           child: const PageTitle(
             'Свои списки',
-            description: 'Дополняют стандартные списки zapret.\n'
-                'Сохраняются при его обновлении.',
+            description: 'Дополняют стандартные списки zapret и сохраняются при его обновлении.',
           ),
         ),
         const SizedBox(height: 24),
@@ -148,34 +160,37 @@ class _ListsPageState extends State<ListsPage> {
         const SizedBox(height: 12),
         Appear(
           index: i++,
-          child: Text(description, style: NcType.caption.copyWith(color: p.muted)),
-        ),
-        const SizedBox(height: 16),
-        Appear(
-          index: i++,
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  list.entries.isEmpty ? 'Пусто' : countLabel(_kind, list.entries.length),
-                  style: NcType.rowTitle,
-                ),
-              ),
-              NcButton.gray(
-                label: 'Импорт',
-                icon: LucideIcons.fileDown,
-                onPressed: hasInstall ? () => c.importList(_kind) : null,
-              ),
-              const SizedBox(width: 8),
-              NcButton.gray(
-                label: 'Экспорт',
-                icon: LucideIcons.fileUp,
-                onPressed: list.entries.isEmpty ? null : () => c.exportList(_kind),
-              ),
-            ],
+          child: Text(
+            description,
+            style: NcType.caption.copyWith(color: p.muted),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+        // Сколько записей и файл — тихой строкой: главное здесь сам список и «Добавить».
+        if (hasInstall && list.entries.isNotEmpty) ...[
+          Appear(
+            index: i++,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    countLabel(_kind, list.entries.length),
+                    style: NcType.rowTitle,
+                  ),
+                ),
+                NcQuietButton(
+                  label: 'Импорт',
+                  onPressed: () => c.importList(_kind),
+                ),
+                NcQuietButton(
+                  label: 'Экспорт',
+                  onPressed: () => c.exportList(_kind),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         if (list.entries.length > 8) ...[
           NcTextField(
             controller: _search,
@@ -195,31 +210,46 @@ class _ListsPageState extends State<ListsPage> {
             index: i++,
             child: _EmptyCard(
               title: 'Здесь пока пусто',
-              text: 'Добавьте ${_kind.ip ? 'адрес' : 'сайт'} кнопкой «Добавить» '
-                  'или импортируйте список из файла.',
+              text:
+                  'Добавьте ${_kind.ip ? 'адрес' : 'сайт'} кнопкой «Добавить» '
+                  'или возьмите список из текстового файла.',
+              action: NcButton.gray(
+                label: 'Импорт из файла',
+                icon: LucideIcons.fileDown,
+                onPressed: () => c.importList(_kind),
+              ),
             ),
           )
         else if (filtered.isEmpty)
-          Text('Ничего не нашлось', style: NcType.caption.copyWith(color: p.muted))
+          Text(
+            'Ничего не нашлось',
+            style: NcType.caption.copyWith(color: p.muted),
+          )
         else ...[
           Appear(
             index: i++,
-            child: NcSettingsCard(children: [
-              for (final e in shown)
-                _EntryRow(
-                  entry: e,
-                  ip: _kind.ip,
-                  onRemove: () => _remove(c, e),
-                ),
-            ]),
+            child: NcSettingsCard(
+              children: [
+                for (final e in shown)
+                  _EntryRow(
+                    entry: e,
+                    ip: _kind.ip,
+                    onRemove: () => _remove(c, e),
+                  ),
+              ],
+            ),
           ),
           if (filtered.length > shown.length) ...[
             const SizedBox(height: 8),
-            Text('И ещё ${filtered.length - shown.length} — уточните поиск.',
-                style: NcType.caption.copyWith(color: p.muted)),
+            Text(
+              'И ещё ${filtered.length - shown.length} — уточните поиск.',
+              style: NcType.caption.copyWith(color: p.muted),
+            ),
           ],
         ],
-        if (_kind == UserListKind.bypass && hasInstall && c.standardListSize > 0) ...[
+        if (_kind == UserListKind.bypass &&
+            hasInstall &&
+            c.standardListSize > 0) ...[
           const SizedBox(height: 16),
           Text(
             'Стандартный список zapret — ${plural(c.standardListSize, 'сайт', 'сайта', 'сайтов')}. '
@@ -233,7 +263,11 @@ class _ListsPageState extends State<ListsPage> {
 }
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({required this.entry, required this.ip, required this.onRemove});
+  const _EntryRow({
+    required this.entry,
+    required this.ip,
+    required this.onRemove,
+  });
 
   final String entry;
   final bool ip;
@@ -250,17 +284,30 @@ class _EntryRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(unicode, style: NcType.body, maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(
+                  unicode,
+                  style: NcType.body,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 // Русский домен zapret видит в punycode — показываем и его.
                 if (unicode != entry)
-                  Text(entry,
-                      style: NcType.caption.copyWith(color: context.palette.muted),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    entry,
+                    style: NcType.caption.copyWith(
+                      color: context.palette.muted,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
-          NcIconButton(icon: LucideIcons.x, tooltip: 'Убрать', onPressed: onRemove),
+          NcIconButton(
+            icon: LucideIcons.x,
+            tooltip: 'Убрать',
+            onPressed: onRemove,
+          ),
         ],
       ),
     );
@@ -268,10 +315,11 @@ class _EntryRow extends StatelessWidget {
 }
 
 class _EmptyCard extends StatelessWidget {
-  const _EmptyCard({required this.title, required this.text});
+  const _EmptyCard({required this.title, required this.text, this.action});
 
   final String title;
   final String text;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -281,7 +329,11 @@ class _EmptyCard extends StatelessWidget {
         children: [
           Text(title, style: NcType.rowTitle),
           const SizedBox(height: 4),
-          Text(text, style: NcType.caption.copyWith(color: context.palette.muted)),
+          Text(
+            text,
+            style: NcType.caption.copyWith(color: context.palette.muted),
+          ),
+          if (action != null) ...[const SizedBox(height: 12), action!],
         ],
       ),
     );
@@ -324,7 +376,9 @@ class _AddDialogState extends State<_AddDialog> {
         ),
         NcDialogButton(
           label: 'Добавить',
-          onPressed: count == 0 ? null : () => Navigator.of(context).pop(_parsed.entries),
+          onPressed: count == 0
+              ? null
+              : () => Navigator.of(context).pop(_parsed.entries),
         ),
       ],
       child: Column(
@@ -334,7 +388,7 @@ class _AddDialogState extends State<_AddDialog> {
             ip
                 ? 'По одному на строке или через запятую. Можно с маской подсети.'
                 : 'По одному на строке или через запятую. Можно вставить ссылки — '
-                    'лаунчер оставит только домен.',
+                      'лаунчер оставит только домен.',
             style: NcType.body.copyWith(color: p.muted),
           ),
           const SizedBox(height: 16),
@@ -348,13 +402,15 @@ class _AddDialogState extends State<_AddDialog> {
             error: invalid.isEmpty
                 ? null
                 : '${ip ? 'Не похоже на адрес' : 'Не похоже на домен'}: '
-                    '${invalid.take(3).join(', ')}${invalid.length > 3 ? ' и ещё ${invalid.length - 3}' : ''}',
+                      '${invalid.take(3).join(', ')}${invalid.length > 3 ? ' и ещё ${invalid.length - 3}' : ''}',
             onChanged: (v) => setState(() => _parsed = parseEntries(v, ip: ip)),
           ),
           if (count > 0) ...[
             const SizedBox(height: 8),
-            Text('Будет добавлено: ${countLabel(widget.kind, count)}',
-                style: NcType.caption.copyWith(color: p.muted)),
+            Text(
+              'Будет добавлено: ${countLabel(widget.kind, count)}',
+              style: NcType.caption.copyWith(color: p.muted),
+            ),
           ],
         ],
       ),

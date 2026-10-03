@@ -9,13 +9,17 @@ class ZapretBundle {
   ZapretBundle(this.dir);
 
   /// Файлы приложения рядом с exe: data\flutter_assets\assets\zapret.
-  factory ZapretBundle.app() => ZapretBundle(Directory(p.join(
+  factory ZapretBundle.app() => ZapretBundle(
+    Directory(
+      p.join(
         p.dirname(Platform.resolvedExecutable),
         'data',
         'flutter_assets',
         'assets',
         'zapret',
-      )));
+      ),
+    ),
+  );
 
   final Directory dir;
 
@@ -41,7 +45,9 @@ class ZapretBundle {
   /// Копия архива во временной папке — installFromZip удаляет папку архива после распаковки.
   Future<File> copyZip() async {
     final v = version;
-    if (v == null) throw const FileSystemException('В лаунчере нет встроенного zapret');
+    if (v == null) {
+      throw const FileSystemException('В лаунчере нет встроенного zapret');
+    }
     final tmp = await Directory.systemTemp.createTemp('zapret-launcher-');
     return _zip(v).copy(p.join(tmp.path, 'zapret-$v.zip'));
   }

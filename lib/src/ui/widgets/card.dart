@@ -25,36 +25,36 @@ class NcCard extends StatelessWidget {
     final radius = BorderRadius.circular(NcRadius.card);
 
     Widget surface(PressState? s) => Container(
-          decoration: BoxDecoration(
-            color: p.card,
-            borderRadius: radius,
-            boxShadow: p.softShadow,
-            border: s != null && s.focused
-                ? Border.all(color: p.primary, width: 2)
-                : p.cardOutline,
-          ),
-          child: ClipRRect(
-            borderRadius: radius,
-            child: Stack(
-              children: [
-                Padding(padding: padding, child: child),
-                if (s != null)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: AnimatedContainer(
-                        duration: NcMotion.hover,
-                        color: s.pressed
-                            ? p.hoverTint(pressed: true)
-                            : s.hovered
-                                ? p.hoverTint()
-                                : p.hoverTint().withValues(alpha: 0),
-                      ),
-                    ),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: radius,
+        boxShadow: p.softShadow,
+        border: s != null && s.focused
+            ? Border.all(color: p.primary, width: 2)
+            : p.cardOutline,
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: Stack(
+          children: [
+            Padding(padding: padding, child: child),
+            if (s != null)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedContainer(
+                    duration: NcMotion.hover,
+                    color: s.pressed
+                        ? p.hoverTint(pressed: true)
+                        : s.hovered
+                        ? p.hoverTint()
+                        : p.hoverTint().withValues(alpha: 0),
                   ),
-              ],
-            ),
-          ),
-        );
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
 
     if (onTap == null) return surface(null);
     return Pressable(onTap: onTap, builder: (context, s) => surface(s));
@@ -73,16 +73,21 @@ class NcSettingsCard extends StatelessWidget {
     final rows = <Widget>[];
     for (var i = 0; i < children.length; i++) {
       if (i > 0) {
-        rows.add(Padding(
-          padding: const EdgeInsets.symmetric(horizontal: NcSpace.cardPad),
-          child: Divider(height: 1, thickness: 1, color: p.divider),
-        ));
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: NcSpace.cardPad),
+            child: Divider(height: 1, thickness: 1, color: p.divider),
+          ),
+        );
       }
       rows.add(children[i]);
     }
     return NcCard(
       padding: EdgeInsets.zero,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: rows),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows,
+      ),
     );
   }
 }
@@ -112,36 +117,38 @@ class NcSettingRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     Widget content(PressState? s) => AnimatedContainer(
-          duration: NcMotion.hover,
-          color: s == null
-              ? Colors.transparent
-              : s.pressed
-                  ? p.hoverTint(pressed: true)
-                  : s.hovered
-                      ? p.hoverTint()
-                      : p.hoverTint().withValues(alpha: 0),
-          padding: const EdgeInsets.all(NcSpace.cardPad),
-          child: Row(
-            children: [
-              if (leading != null) ...[leading!, const SizedBox(width: 12)],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: NcType.rowTitle),
-                    if (description != null) ...[
-                      const SizedBox(height: 2),
-                      Text(description!,
-                          style: NcType.caption.copyWith(color: p.muted)),
-                    ],
-                    if (below != null) ...[const SizedBox(height: 6), below!],
-                  ],
-                ),
-              ),
-              if (trailing != null) ...[const SizedBox(width: 16), trailing!],
-            ],
+      duration: NcMotion.hover,
+      color: s == null
+          ? Colors.transparent
+          : s.pressed
+          ? p.hoverTint(pressed: true)
+          : s.hovered
+          ? p.hoverTint()
+          : p.hoverTint().withValues(alpha: 0),
+      padding: const EdgeInsets.all(NcSpace.cardPad),
+      child: Row(
+        children: [
+          if (leading != null) ...[leading!, const SizedBox(width: 12)],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: NcType.rowTitle),
+                if (description != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    description!,
+                    style: NcType.caption.copyWith(color: p.muted),
+                  ),
+                ],
+                if (below != null) ...[const SizedBox(height: 6), below!],
+              ],
+            ),
           ),
-        );
+          if (trailing != null) ...[const SizedBox(width: 16), trailing!],
+        ],
+      ),
+    );
     if (onTap == null) return content(null);
     return Pressable(onTap: onTap, builder: (context, s) => content(s));
   }

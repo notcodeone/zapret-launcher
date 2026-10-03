@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_info.dart';
 import 'controller.dart';
 import 'pages/autopick_page.dart';
+import 'pages/bypass_options_page.dart';
 import 'pages/diagnostics_page.dart';
 import 'pages/home_page.dart';
 import 'pages/lists_page.dart';
@@ -14,7 +15,12 @@ import 'shell.dart';
 import 'ui/ui.dart';
 
 class ZapretLauncherApp extends StatefulWidget {
-  const ZapretLauncherApp({super.key, this.controller, this.initialRoute, this.themeOverride});
+  const ZapretLauncherApp({
+    super.key,
+    this.controller,
+    this.initialRoute,
+    this.themeOverride,
+  });
 
   /// Для тестов; в приложении контроллер создаётся здесь.
   final AppController? controller;
@@ -28,7 +34,8 @@ class ZapretLauncherApp extends StatefulWidget {
 }
 
 class _ZapretLauncherAppState extends State<ZapretLauncherApp> {
-  late final ToastController _toasts = widget.controller?.toasts ?? ToastController();
+  late final ToastController _toasts =
+      widget.controller?.toasts ?? ToastController();
   late final AppController _controller =
       widget.controller ?? (AppController(toasts: _toasts)..init());
 
@@ -77,6 +84,7 @@ class _ZapretLauncherAppState extends State<ZapretLauncherApp> {
             '/network' => const _OpenNetworkMenu(),
             '/lists' => const ListsPage(),
             '/networks' => const NetworksPage(),
+            '/options' => const BypassOptionsPage(),
             _ => const HomePage(),
           },
         ),

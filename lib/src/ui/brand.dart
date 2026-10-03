@@ -32,8 +32,10 @@ abstract final class BrandMark {
 
     // Молния занимает около 64 % квадрата.
     final scale = s * .64 / 24;
-    final origin = rect.topLeft + Offset((s - 24 * scale) / 2, (s - 24 * scale) / 2);
-    final path = Path()..addPolygon([for (final p in _bolt) origin + p * scale], true);
+    final origin =
+        rect.topLeft + Offset((s - 24 * scale) / 2, (s - 24 * scale) / 2);
+    final path = Path()
+      ..addPolygon([for (final p in _bolt) origin + p * scale], true);
     final paint = Paint()
       ..color = foreground
       ..isAntiAlias = true
@@ -65,17 +67,33 @@ abstract final class BrandMark {
     Color? dot,
     Color? dotRing,
   }) async {
-    final image = await _render(size, background: background, foreground: foreground, dot: dot, dotRing: dotRing, filledBolt: size <= 24);
-    final data = await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba);
+    final image = await _render(
+      size,
+      background: background,
+      foreground: foreground,
+      dot: dot,
+      dotRing: dotRing,
+      filledBolt: size <= 24,
+    );
+    final data = await image.toByteData(
+      format: ui.ImageByteFormat.rawStraightRgba,
+    );
     image.dispose();
     return data!.buffer.asUint8List();
   }
 
   /// Знак в PNG — для файла значка приложения.
-  static Future<Uint8List> renderPng(int size,
-      {required Color background, required Color foreground}) async {
-    final image = await _render(size,
-        background: background, foreground: foreground, filledBolt: size <= 24);
+  static Future<Uint8List> renderPng(
+    int size, {
+    required Color background,
+    required Color foreground,
+  }) async {
+    final image = await _render(
+      size,
+      background: background,
+      foreground: foreground,
+      filledBolt: size <= 24,
+    );
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     image.dispose();
     return data!.buffer.asUint8List();

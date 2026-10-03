@@ -41,7 +41,11 @@ class LauncherAutostart {
   static const arguments = '--minimized';
 
   String get _taskFile => p.join(
-      Platform.environment['SystemRoot'] ?? r'C:\Windows', 'System32', 'Tasks', taskName);
+    Platform.environment['SystemRoot'] ?? r'C:\Windows',
+    'System32',
+    'Tasks',
+    taskName,
+  );
 
   Future<AutostartState> query() async {
     final r = await Process.run('schtasks', ['/Query', '/TN', taskName]);
@@ -50,7 +54,9 @@ class LauncherAutostart {
     try {
       final xml = _decodeUtf16(File(_taskFile).readAsBytesSync());
       final m = RegExp(r'<Command>([^<]*)</Command>').firstMatch(xml);
-      final command = m == null ? null : _unescape(m[1]!).replaceAll('"', '').trim();
+      final command = m == null
+          ? null
+          : _unescape(m[1]!).replaceAll('"', '').trim();
       return AutostartState(registered: true, command: command);
     } on FileSystemException {
       return const AutostartState(registered: true);
@@ -64,11 +70,24 @@ class LauncherAutostart {
       final xmlFile = File(p.join(dir.path, 'task.xml'));
       // Планировщик ждёт UTF-16 с BOM — как в его собственном экспорте.
       final xml = taskXml(exe: exe, user: currentUser());
-      xmlFile.writeAsBytesSync([0xFF, 0xFE, for (final u in xml.codeUnits) ...[u & 0xFF, u >> 8]]);
-      final r = await Process.run('schtasks', ['/Create', '/TN', taskName, '/XML', xmlFile.path, '/F']);
+      xmlFile.writeAsBytesSync([
+        0xFF,
+        0xFE,
+        for (final u in xml.codeUnits) ...[u & 0xFF, u >> 8],
+      ]);
+      final r = await Process.run('schtasks', [
+        '/Create',
+        '/TN',
+        taskName,
+        '/XML',
+        xmlFile.path,
+        '/F',
+      ]);
       if (r.exitCode != 0) {
         throw AutostartException(
-            'Не удалось создать задачу в Планировщике', '${r.stderr}'.trim().ifEmpty('код ${r.exitCode}'));
+          'Не удалось создать задачу в Планировщике',
+          '${r.stderr}'.trim().ifEmpty('код ${r.exitCode}'),
+        );
       }
     } finally {
       await dir.delete(recursive: true);
@@ -79,7 +98,9 @@ class LauncherAutostart {
     final r = await Process.run('schtasks', ['/Delete', '/TN', taskName, '/F']);
     if (r.exitCode != 0 && (await query()).registered) {
       throw AutostartException(
-          'Не удалось удалить задачу из Планировщика', '${r.stderr}'.trim().ifEmpty('код ${r.exitCode}'));
+        'Не удалось удалить задачу из Планировщика',
+        '${r.stderr}'.trim().ifEmpty('код ${r.exitCode}'),
+      );
     }
   }
 
@@ -150,7 +171,8 @@ class LauncherAutostart {
     if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) start = 2;
     if (start == 0) return utf8.decode(bytes, allowMalformed: true);
     return String.fromCharCodes([
-      for (var i = start; i + 1 < bytes.length; i += 2) bytes[i] | (bytes[i + 1] << 8),
+      for (var i = start; i + 1 < bytes.length; i += 2)
+        bytes[i] | (bytes[i + 1] << 8),
     ]);
   }
 

@@ -6,9 +6,9 @@ import '../location/country.dart';
 import '../location/network_guard.dart';
 import '../settings.dart';
 import '../ui/ui.dart';
-import '../zapret/install.dart';
 import '../zapret/network.dart';
 import 'autopick_page.dart';
+import 'bypass_options_page.dart';
 import '../zapret/user_lists.dart';
 import 'common.dart';
 import 'lists_page.dart';
@@ -26,61 +26,71 @@ class HomePage extends StatelessWidget {
     var i = 0;
 
     return NcPage(
-      header: appHeader(context, c, actions: [
-        if (install != null) networkButton(context, c),
-        NcIconButton(
-          icon: LucideIcons.settings,
-          tooltip: 'Настройки',
-          badge: c.updateAvailable ? BadgeTone.pending : null,
-          onPressed: () => Navigator.of(context)
-              .push(NcPageRoute<void>(builder: (_) => const SettingsPage())),
-        ),
-      ]),
+      header: appHeader(
+        context,
+        c,
+        actions: [
+          if (install != null) networkButton(context, c),
+          NcIconButton(
+            icon: LucideIcons.settings,
+            tooltip: 'Настройки',
+            badge: c.updateAvailable ? BadgeTone.pending : null,
+            onPressed: () => Navigator.of(context)
+                .push(NcPageRoute<void>(builder: (_) => const SettingsPage())),
+          ),
+        ],
+      ),
       footer: appFooter(c),
       children: [
-        ...importantRows(context, c),
+        ...importantRows(context, c, admin: true),
         ..._autoOffRow(c),
         ..._newNetworkRow(context, c),
         ..._blockedRow(context, c),
-        Appear(
-          index: i++,
-          child: const PageTitle(
-            'Обход блокировок',
-            description: 'Discord и YouTube работают без VPN, пока включён zapret.',
-          ),
-        ),
-        const SizedBox(height: 24),
+        // Главное — состояние и одна кнопка; как именно обходить — на своих страницах.
         if (install == null)
-          Appear(index: i++, child: _InstallCard(controller: c))
+          Appear(
+            index: i++,
+            child: _InstallCard(controller: c),
+          )
         else ...[
-          Appear(index: i++, child: _StatusCard(controller: c)),
+          Appear(
+            index: i++,
+            child: _StatusCard(controller: c),
+          ),
           const SizedBox(height: NcSpace.gapCards),
           Appear(
             index: i++,
-            child: NcSettingsCard(children: [
-              NcSettingRow(
-                title: 'Стратегия',
-                description: c.strategy == null
-                    ? 'Нет ни одной стратегии'
-                    : '«${c.strategy!.title}» — если сайты не открываются, попробуйте другую.',
-                trailing: Icon(LucideIcons.chevronRight, size: 20, color: context.palette.muted),
-                onTap: () => Navigator.of(context)
-                    .push(NcPageRoute<void>(builder: (_) => const StrategiesPage())),
-              ),
-              NcSettingRow(
-                title: 'Свои списки',
-                description: _listsLine(c),
-                below: c.listsChanged
-                    ? const StatusLine(tone: Tone.warning, text: 'Нужен перезапуск')
-                    : null,
-                trailing: Icon(LucideIcons.chevronRight, size: 20, color: context.palette.muted),
-                onTap: () => Navigator.of(context)
-                    .push(NcPageRoute<void>(builder: (_) => const ListsPage())),
-              ),
-            ]),
+            child: NcSettingsCard(
+              children: [
+                _NavRow(
+                  icon: LucideIcons.slidersHorizontal,
+                  title: 'Стратегия',
+                  description: c.strategy == null
+                      ? 'Нет ни одной стратегии'
+                      : '«${c.strategy!.title}». Не открываются сайты — подберите другую.',
+                  page: const StrategiesPage(),
+                ),
+                _NavRow(
+                  icon: LucideIcons.listChecks,
+                  title: 'Свои списки',
+                  description: _listsLine(c),
+                  below: c.listsChanged
+                      ? const StatusLine(
+                          tone: Tone.warning,
+                          text: 'Нужен перезапуск',
+                        )
+                      : null,
+                  page: const ListsPage(),
+                ),
+                _NavRow(
+                  icon: LucideIcons.gamepad2,
+                  title: 'Игровой фильтр и IPSet',
+                  description: bypassOptionsLine(c),
+                  page: const BypassOptionsPage(),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: NcSpace.gapCards),
-          Appear(index: i++, child: _OptionsCard(controller: c)),
         ],
       ],
     );
@@ -93,19 +103,19 @@ List<Widget> _autoOffRow(AppController c) {
   if (off == null || c.running) return const [];
   final (title, detail) = switch (off.reason) {
     AutoOffReason.countryChanged => (
-        'Zapret выключен: сменилась страна',
-        '${off.from == null ? '' : countryName(off.from!)} → '
-            '${off.to == null ? 'неизвестно' : countryName(off.to!)}: Discord и YouTube '
-            'открываются и так. Включу снова, когда блокировки вернутся.',
-      ),
+      'Zapret выключен: сменилась страна',
+      '${off.from == null ? '' : countryName(off.from!)} → '
+          '${off.to == null ? 'неизвестно' : countryName(off.to!)}: Discord и YouTube '
+          'открываются и так. Включу снова, когда блокировки вернутся.',
+    ),
     AutoOffReason.servicesOpen => (
-        'Zapret выключен: обход не нужен',
-        'В этой сети Discord и YouTube открываются и так. Включу снова, если блокировки вернутся.',
-      ),
+      'Zapret выключен: обход не нужен',
+      'В этой сети Discord и YouTube открываются и так. Включу снова, если блокировки вернутся.',
+    ),
     AutoOffReason.profile => (
-        'Zapret выключен: сеть «${off.network ?? 'эта'}»',
-        'В профиле этой сети отмечено, что zapret не нужен. В другой сети включу снова.',
-      ),
+      'Zapret выключен: сеть «${off.network ?? 'эта'}»',
+      'В профиле этой сети отмечено, что zapret не нужен. В другой сети включу снова.',
+    ),
   };
   return [
     NoticeRow(
@@ -115,7 +125,9 @@ List<Widget> _autoOffRow(AppController c) {
       detail: detail,
       action: NcButton.gray(
         label: 'Включить',
-        onPressed: c.busy == null && c.elevated && c.strategy != null ? c.start : null,
+        onPressed: c.busy == null && c.elevated && c.strategy != null
+            ? c.start
+            : null,
       ),
     ),
     const SizedBox(height: 24),
@@ -130,12 +142,14 @@ List<Widget> _newNetworkRow(BuildContext context, AppController c) {
       kind: NoticeKind.decision,
       icon: LucideIcons.router,
       title: 'Новая сеть: ${c.currentNetworkName}',
-      detail: 'Своей стратегии для неё нет — сейчас «${c.strategy?.title}» из прошлой сети. '
+      detail:
+          'Своей стратегии для неё нет — сейчас «${c.strategy?.title}» из прошлой сети. '
           'Крестик — оставить её для этой сети.',
       action: NcButton.gray(
         label: 'Подобрать',
         onPressed: () =>
-            Navigator.of(context).push(NcPageRoute<void>(builder: (_) => const AutoPickPage())),
+            Navigator.of(context)
+                .push(NcPageRoute<void>(builder: (_) => const AutoPickPage())),
       ),
       onClose: c.rememberCurrentNetwork,
     ),
@@ -156,8 +170,12 @@ String _listsLine(AppController c) {
 /// zapret включён, а Discord или YouTube не открываются — стоит сменить стратегию.
 List<Widget> _blockedRow(BuildContext context, AppController c) {
   final r = c.network;
-  if (r == null || !r.withZapret || !c.running || c.busy != null || r.offline) return const [];
-  if (r.strategyTitle != null && r.strategyTitle != c.strategy?.title) return const [];
+  if (r == null || !r.withZapret || !c.running || c.busy != null || r.offline) {
+    return const [];
+  }
+  if (r.strategyTitle != null && r.strategyTitle != c.strategy?.title) {
+    return const [];
+  }
   final bad = [
     for (final g in const ['Discord', 'YouTube'])
       if (r.byGroup.containsKey(g) && r.health(g) != ServiceHealth.ok) g,
@@ -173,7 +191,8 @@ List<Widget> _blockedRow(BuildContext context, AppController c) {
       action: NcButton.gray(
         label: 'Подобрать',
         onPressed: () =>
-            Navigator.of(context).push(NcPageRoute<void>(builder: (_) => const AutoPickPage())),
+            Navigator.of(context)
+                .push(NcPageRoute<void>(builder: (_) => const AutoPickPage())),
       ),
     ),
     const SizedBox(height: 24),
@@ -200,7 +219,8 @@ class _InstallCard extends StatelessWidget {
     final List<Widget> buttons;
     if (!c.builtin) {
       title = 'Папка zapret не найдена';
-      text = '${c.settings.zapretDir ?? 'Своя папка'} — её переместили или удалили. '
+      text =
+          '${c.settings.zapretDir ?? 'Своя папка'} — её переместили или удалили. '
           'Укажите папку заново или вернитесь к встроенному zapret.';
       buttons = [
         NcButton(
@@ -212,12 +232,15 @@ class _InstallCard extends StatelessWidget {
           label: 'Встроенный zapret',
           icon: LucideIcons.package,
           loading: installing,
-          onPressed: idle ? () => c.setZapretSource(ZapretSource.builtin) : null,
+          onPressed: idle
+              ? () => c.setZapretSource(ZapretSource.builtin)
+              : null,
         ),
       ];
     } else if (bundled != null) {
       title = 'Zapret ещё не распакован';
-      text = 'Zapret $bundled встроен в лаунчер — скачивать ничего не нужно. '
+      text =
+          'Zapret $bundled встроен в лаунчер — скачивать ничего не нужно. '
           'Если zapret уже есть на компьютере, можно указать его папку.';
       buttons = [
         NcButton(
@@ -236,7 +259,8 @@ class _InstallCard extends StatelessWidget {
       // Сборка без встроенного zapret (из исходников без tool/fetch_zapret.ps1).
       final version = c.latest?.version;
       title = 'Zapret не установлен';
-      text = 'Лаунчер скачает последнюю версию из репозитория автора — '
+      text =
+          'Лаунчер скачает последнюю версию из репозитория автора — '
           'Flowseal/zapret-discord-youtube на GitHub. '
           'Если zapret уже есть на компьютере, укажите его папку.';
       buttons = [
@@ -269,7 +293,8 @@ class _InstallCard extends StatelessWidget {
   }
 }
 
-/// Главная карточка: работает ли zapret и кнопка включения.
+/// Главная карточка: состояние zapret крупно и одна большая кнопка.
+/// Как запускать (службой или как general.bat) — в настройках.
 class _StatusCard extends StatelessWidget {
   const _StatusCard({required this.controller});
 
@@ -280,130 +305,260 @@ class _StatusCard extends StatelessWidget {
     final c = controller;
     final p = context.palette;
     final busyKind = c.busy?.kind;
+    final starting = busyKind == 'start' || busyKind == 'restart';
+    final stopping = busyKind == 'stop';
+    final title = c.strategy == null ? '' : '«${c.strategy!.title}»';
 
-    final (Tone tone, String status) = switch ((busyKind, c.running)) {
-      ('start' || 'restart', _) => (Tone.info, 'Запускается'),
-      ('stop', _) => (Tone.info, 'Останавливается'),
-      (_, true) => (Tone.success, 'Работает'),
-      _ => (Tone.neutral, 'Выключен'),
-    };
-
+    final String headline;
     final String mode;
-    if (c.running && c.runtime.serviceRunning) {
-      mode = 'Служба Windows: включается вместе с системой.';
+    if (starting) {
+      headline = 'Zapret запускается';
+      mode = 'Стратегия $title.';
+    } else if (stopping) {
+      headline = 'Zapret выключается';
+      mode = 'Сайты снова пойдут без обхода.';
     } else if (c.running) {
-      mode = 'Работает до перезагрузки, даже если закрыть лаунчер.';
-    } else if (c.guard.autoOff != null) {
-      mode = 'Выключен лаунчером — сменилась сеть.';
-    } else if (c.autostart) {
-      mode = 'Служба Windows установлена, но остановлена.';
+      headline = 'Zapret работает';
+      mode = c.runtime.serviceRunning
+          ? 'Стратегия $title. Служба Windows — включится и после перезагрузки.'
+          : 'Стратегия $title. До перезагрузки, даже если закрыть лаунчер.';
     } else {
-      mode = 'Сайты открываются как обычно — без обхода.';
+      headline = 'Zapret выключен';
+      if (c.guard.autoOff != null) {
+        mode = 'Выключен лаунчером: в этой сети обход не нужен.';
+      } else if (c.autostart) {
+        mode = 'Служба Windows: включится сам после перезагрузки.';
+      } else {
+        mode = 'Включите — Discord и YouTube откроются без VPN.';
+      }
     }
+    final on = c.running && !stopping;
 
     return NcCard(
-      child: Row(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          AnimatedContainer(
-            duration: NcMotion.icon,
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: c.running ? p.success : p.field,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              NcSpace.cardPad,
+              20,
+              NcSpace.cardPad,
+              NcSpace.cardPad,
             ),
-            child: Icon(
-              c.running ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
-              size: 20,
-              color: c.running ? Colors.white : p.muted,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Wrap(
-                  spacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
+                Row(
                   children: [
-                    const Text('Zapret', style: NcType.rowTitle),
-                    StatusLine(tone: tone, text: status),
+                    AnimatedContainer(
+                      duration: NcMotion.icon,
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: on ? p.success : p.field,
+                      ),
+                      child: Icon(
+                        on ? LucideIcons.shieldCheck : LucideIcons.shieldOff,
+                        size: 24,
+                        color: on ? Colors.white : p.muted,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(headline, style: NcType.section),
+                          const SizedBox(height: 2),
+                          Text(
+                            mode,
+                            style: NcType.caption.copyWith(color: p.muted),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                Text(mode, style: NcType.caption.copyWith(color: p.muted)),
+                const SizedBox(height: 16),
+                NcButton(
+                  kind: c.running ? NcButtonKind.gray : NcButtonKind.primary,
+                  label: c.running ? 'Выключить' : 'Включить',
+                  icon: LucideIcons.power,
+                  large: true,
+                  expand: true,
+                  loading: starting || stopping,
+                  onPressed:
+                      c.elevated &&
+                          c.busy == null &&
+                          c.strategy != null &&
+                          !c.runningElsewhere
+                      ? () => _toggle(context, c)
+                      : null,
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          NcButton(
-            label: c.running ? 'Выключить' : 'Включить',
-            icon: LucideIcons.power,
-            loading: busyKind == 'start' || busyKind == 'stop' || busyKind == 'restart',
-            onPressed: c.elevated && c.busy == null && c.strategy != null && !c.runningElsewhere
-                ? c.toggle
-                : null,
           ),
         ],
       ),
     );
   }
+
+  /// Первое включение — сначала спросим, как запускать zapret.
+  static Future<void> _toggle(BuildContext context, AppController c) async {
+    if (c.running || !c.needsRunModeChoice) return c.toggle();
+    final service = await showRunModeDialog(context);
+    if (service != null) await c.startFirstTime(service: service);
+  }
 }
 
-/// Настройки обхода: автозапуск, игровой фильтр, IPSet.
-class _OptionsCard extends StatelessWidget {
-  const _OptionsCard({required this.controller});
+/// Как запускать zapret: как general.bat (процессом до перезагрузки) или службой
+/// Windows. true — службой; null — передумали.
+Future<bool?> showRunModeDialog(BuildContext context) {
+  var service = false;
+  return showNcModal<bool>(
+    context,
+    label: 'Как запускать zapret',
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => NcDialogFrame(
+        title: 'Как запускать zapret?',
+        actions: [
+          NcDialogButton(
+            label: 'Отмена',
+            kind: NcDialogButtonKind.cancel,
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          NcDialogButton(
+            label: 'Включить',
+            onPressed: () => Navigator.of(context).pop(service),
+          ),
+        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Поменять можно потом в настройках.',
+              style: NcType.body.copyWith(color: context.palette.muted),
+            ),
+            const SizedBox(height: 16),
+            _RunModeOption(
+              icon: LucideIcons.squareTerminal,
+              title: 'Как general.bat',
+              text: 'Работает до перезагрузки. Потом включите снова — здесь или из трея.',
+              selected: !service,
+              onTap: () => setState(() => service = false),
+            ),
+            const SizedBox(height: 8),
+            _RunModeOption(
+              icon: LucideIcons.serverCog,
+              title: 'Службой Windows',
+              text:
+                  'Включается вместе с Windows и работает даже без лаунчера — '
+                  'как установка службы в service.bat.',
+              selected: service,
+              onTap: () => setState(() => service = true),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 
-  final AppController controller;
+/// Вариант в диалоге выбора: значок, название, пояснение; выбранный — в рамке.
+class _RunModeOption extends StatelessWidget {
+  const _RunModeOption({
+    required this.icon,
+    required this.title,
+    required this.text,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final c = controller;
-    final enabled = c.elevated && c.busy == null;
-    return NcSettingsCard(children: [
-      NcSettingRow(
-        title: 'Включать zapret вместе с Windows',
-        description: 'Zapret работает как служба Windows и включается сам после перезагрузки.',
-        trailing: NcSwitch(
-          value: c.autostart,
-          label: 'Включать zapret вместе с Windows',
-          onChanged: enabled && !c.runningElsewhere ? c.setAutostart : null,
-        ),
-      ),
-      NcSettingRow(
-        title: 'Игровой фильтр',
-        description: 'Обход и для игр: порты выше 1023. Если всё работает — не включайте.',
-        below: Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: NcSegmented<GameFilterMode>(
-            value: c.gameFilter.mode,
-            onChanged: enabled ? c.setGameFilterMode : null,
-            segments: const [
-              NcSegment(GameFilterMode.disabled, 'Выкл'),
-              NcSegment(GameFilterMode.all, 'TCP и UDP'),
-              NcSegment(GameFilterMode.tcp, 'TCP'),
-              NcSegment(GameFilterMode.udp, 'UDP'),
-            ],
+    final p = context.palette;
+    return Pressable(
+      onTap: onTap,
+      semanticLabel: title,
+      builder: (context, s) => AnimatedContainer(
+        duration: NcMotion.hover,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected || s.hovered ? p.field : p.field.withValues(alpha: 0),
+          borderRadius: BorderRadius.circular(NcRadius.control),
+          border: Border.all(
+            color: selected || s.focused ? p.primary : p.divider,
+            width: selected || s.focused ? 2 : 1,
           ),
         ),
-      ),
-      NcSettingRow(
-        title: 'IPSet',
-        description: 'Обходить блокировки не только по доменам, но и по адресам серверов.',
-        below: Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: NcSegmented<IpsetMode>(
-            value: c.ipsetMode,
-            onChanged: enabled ? c.setIpsetMode : null,
-            segments: const [
-              NcSegment(IpsetMode.none, 'Выкл'),
-              NcSegment(IpsetMode.loaded, 'По списку'),
-              NcSegment(IpsetMode.any, 'Все адреса'),
-            ],
-          ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 20, color: p.text),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: NcType.rowTitle),
+                  const SizedBox(height: 2),
+                  Text(text, style: NcType.caption.copyWith(color: p.muted)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              selected ? LucideIcons.circleCheck : LucideIcons.circle,
+              size: 20,
+              color: selected ? p.text : p.muted,
+            ),
+          ],
         ),
       ),
-    ]);
+    );
+  }
+}
+
+/// Строка-переход на страницу: значок в круге, пояснение и стрелка.
+class _NavRow extends StatelessWidget {
+  const _NavRow({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.page,
+    this.below,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final Widget page;
+  final Widget? below;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return NcSettingRow(
+      leading: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: p.field),
+        child: Icon(icon, size: 18, color: p.text),
+      ),
+      title: title,
+      description: description,
+      below: below,
+      trailing: Icon(LucideIcons.chevronRight, size: 20, color: p.muted),
+      onTap: () =>
+          Navigator.of(context).push(NcPageRoute<void>(builder: (_) => page)),
+    );
   }
 }

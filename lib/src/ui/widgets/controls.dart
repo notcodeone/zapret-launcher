@@ -6,7 +6,12 @@ import 'pressable.dart';
 /// Переключатель: дорожка 52 × 32, бегунок 24 одного размера в обоих положениях.
 /// Включён — primary, выключен — серая дорожка.
 class NcSwitch extends StatelessWidget {
-  const NcSwitch({super.key, required this.value, required this.onChanged, this.label});
+  const NcSwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.label,
+  });
 
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -16,7 +21,9 @@ class NcSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final enabled = onChanged != null;
-    final duration = NcMotion.reduced(context) ? Duration.zero : NcMotion.segment;
+    final duration = NcMotion.reduced(context)
+        ? Duration.zero
+        : NcMotion.segment;
     return Semantics(
       toggled: value,
       label: label,
@@ -48,7 +55,11 @@ class NcSwitch extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: value ? p.onPrimary : Colors.white,
                   boxShadow: const [
-                    BoxShadow(color: Color(0x1F000000), blurRadius: 3, offset: Offset(0, 1)),
+                    BoxShadow(
+                      color: Color(0x1F000000),
+                      blurRadius: 3,
+                      offset: Offset(0, 1),
+                    ),
                   ],
                 ),
               ),
@@ -86,7 +97,9 @@ class NcSegmented<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final index = segments.indexWhere((s) => s.value == value);
-    final duration = NcMotion.reduced(context) ? Duration.zero : NcMotion.segment;
+    final duration = NcMotion.reduced(context)
+        ? Duration.zero
+        : NcMotion.segment;
     final n = segments.length;
     return Opacity(
       opacity: onChanged == null ? .6 : 1,
@@ -127,7 +140,9 @@ class NcSegmented<T> extends StatelessWidget {
                 for (final s in segments)
                   Expanded(
                     child: Pressable(
-                      onTap: onChanged == null ? null : () => onChanged!(s.value),
+                      onTap: onChanged == null
+                          ? null
+                          : () => onChanged!(s.value),
                       semanticLabel: s.label,
                       builder: (context, st) {
                         final selected = s.value == value;
@@ -145,12 +160,17 @@ class NcSegmented<T> extends StatelessWidget {
                                   duration: duration,
                                   style: NcType.button.copyWith(
                                     color: color,
-                                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                                    fontWeight: selected
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
                                     fontFamily: NcType.family,
                                     fontFamilyFallback: NcType.fallback,
                                   ),
-                                  child: Text(s.label,
-                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  child: Text(
+                                    s.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ),
                             ],
@@ -186,7 +206,9 @@ class NcProgressBar extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: TweenAnimationBuilder<double>(
           tween: Tween(end: value.clamp(0, 1)),
-          duration: NcMotion.reduced(context) ? Duration.zero : NcMotion.cardAppear,
+          duration: NcMotion.reduced(context)
+              ? Duration.zero
+              : NcMotion.cardAppear,
           curve: NcMotion.enter,
           builder: (context, v, _) => FractionallySizedBox(
             widthFactor: v,
@@ -257,7 +279,10 @@ class _NcTextFieldState extends State<NcTextField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (widget.label != null) ...[NcFieldLabel(widget.label!), const SizedBox(height: 8)],
+        if (widget.label != null) ...[
+          NcFieldLabel(widget.label!),
+          const SizedBox(height: 8),
+        ],
         AnimatedContainer(
           duration: NcMotion.hover,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
@@ -270,7 +295,9 @@ class _NcTextFieldState extends State<NcTextField> {
             ),
           ),
           child: Row(
-            crossAxisAlignment: widget.maxLines == 1 ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            crossAxisAlignment: widget.maxLines == 1
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
             children: [
               if (widget.prefixIcon != null) ...[
                 Icon(widget.prefixIcon, size: 16, color: p.muted),

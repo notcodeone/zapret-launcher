@@ -16,8 +16,20 @@ String _seen(DateTime d) {
   final diff = today.difference(day).inDays;
   if (diff <= 0) return 'сегодня';
   if (diff == 1) return 'вчера';
-  const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа',
-    'сентября', 'октября', 'ноября', 'декабря'];
+  const months = [
+    'января',
+    'февраля',
+    'марта',
+    'апреля',
+    'мая',
+    'июня',
+    'июля',
+    'августа',
+    'сентября',
+    'октября',
+    'ноября',
+    'декабря',
+  ];
   return '${d.day} ${months[d.month - 1]}';
 }
 
@@ -37,7 +49,12 @@ class NetworksPage extends StatelessWidget {
 
     var i = 0;
     return NcPage(
-      header: appHeader(context, c, title: 'Сети', onBack: () => Navigator.of(context).pop()),
+      header: appHeader(
+        context,
+        c,
+        title: 'Сети',
+        onBack: () => Navigator.of(context).pop(),
+      ),
       footer: appFooter(c),
       children: [
         ...importantRows(context, c),
@@ -45,25 +62,29 @@ class NetworksPage extends StatelessWidget {
           index: i++,
           child: const PageTitle(
             'Сети',
-            description: 'Какая стратегия сработает, зависит от провайдера.\n'
-                'Лаунчер помнит свою для каждого и переключает её сам.',
+            description:
+                'Для каждого провайдера — своя стратегия: лаунчер помнит её '
+                'и переключает сам.',
           ),
         ),
         const SizedBox(height: 24),
         Appear(
           index: i++,
-          child: NcSettingsCard(children: [
-            NcSettingRow(
-              title: 'Помнить стратегию для каждой сети',
-              description: 'Выбрали стратегию, игровой фильтр или IPSet — лаунчер запомнит их для этой '
-                  'сети и вернёт, когда вы снова в ней окажетесь.',
-              trailing: NcSwitch(
-                value: c.profilesEnabled,
-                label: 'Помнить стратегию для каждой сети',
-                onChanged: c.setProfilesEnabled,
+          child: NcSettingsCard(
+            children: [
+              NcSettingRow(
+                title: 'Помнить стратегию для каждой сети',
+                description:
+                    'Стратегия, игровой фильтр и IPSet вернутся сами, когда вы снова '
+                    'окажетесь в этой сети.',
+                trailing: NcSwitch(
+                  value: c.profilesEnabled,
+                  label: 'Помнить стратегию для каждой сети',
+                  onChanged: c.setProfilesEnabled,
+                ),
               ),
-            ),
-          ]),
+            ],
+          ),
         ),
         if (c.profilesEnabled) ...[
           const SizedBox(height: NcSpace.gapCards),
@@ -75,7 +96,10 @@ class NetworksPage extends StatelessWidget {
                   Container(
                     width: 40,
                     height: 40,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: p.field),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: p.field,
+                    ),
                     child: Icon(LucideIcons.router, size: 20, color: p.text),
                   ),
                   const SizedBox(width: 12),
@@ -85,7 +109,9 @@ class NetworksPage extends StatelessWidget {
                       children: [
                         Text(
                           g.asn == null
-                              ? (g.providerCheckedAt == null ? 'Определяю сеть…' : 'Сеть не определена')
+                              ? (g.providerCheckedAt == null
+                                    ? 'Определяю сеть…'
+                                    : 'Сеть не определена')
                               : 'Сейчас: ${c.currentNetworkName}',
                           style: NcType.rowTitle,
                         ),
@@ -96,14 +122,18 @@ class NetworksPage extends StatelessWidget {
                               : [
                                   if (g.isp != null) g.isp!,
                                   g.asn!,
-                                  if (g.country != null) countryName(g.country!),
+                                  if (g.country != null)
+                                    countryName(g.country!),
                                 ].join(' · '),
                           style: NcType.caption.copyWith(color: p.muted),
                         ),
                         if (g.asn != null) ...[
                           const SizedBox(height: 6),
                           current == null
-                              ? const StatusLine(tone: Tone.warning, text: 'Новая сеть — своей стратегии нет')
+                              ? const StatusLine(
+                                  tone: Tone.warning,
+                                  text: 'Новая сеть — своей стратегии нет',
+                                )
                               : StatusLine(
                                   tone: Tone.success,
                                   text: current.zapretOff
@@ -115,7 +145,10 @@ class NetworksPage extends StatelessWidget {
                     ),
                   ),
                   if (g.asn != null && current == null && c.install != null)
-                    NcButton.gray(label: 'Запомнить', onPressed: c.rememberCurrentNetwork),
+                    NcButton.gray(
+                      label: 'Запомнить',
+                      onPressed: c.rememberCurrentNetwork,
+                    ),
                 ],
               ),
             ),
@@ -136,23 +169,38 @@ class NetworksPage extends StatelessWidget {
           else
             Appear(
               index: i++,
-              child: NcSettingsCard(children: [
-                for (final profile in c.profiles)
-                  NcSettingRow(
-                    title: profile.name,
-                    description: [
-                      profile.zapretOff ? 'zapret не нужен' : '«${_strategyTitle(c, profile.strategy)}»',
-                      if (profile.isp != null && profile.isp != profile.name) profile.isp!,
-                      'была ${_seen(profile.lastSeen)}',
-                    ].join(' · '),
-                    below: profile.asn == g.asn
-                        ? const StatusLine(tone: Tone.success, text: 'Вы сейчас в этой сети')
-                        : null,
-                    trailing: Icon(LucideIcons.chevronRight, size: 20, color: p.muted),
-                    onTap: () => Navigator.of(context).push(
-                        NcPageRoute<void>(builder: (_) => ProfilePage(asn: profile.asn))),
-                  ),
-              ]),
+              child: NcSettingsCard(
+                children: [
+                  for (final profile in c.profiles)
+                    NcSettingRow(
+                      title: profile.name,
+                      description: [
+                        profile.zapretOff
+                            ? 'zapret не нужен'
+                            : '«${_strategyTitle(c, profile.strategy)}»',
+                        if (profile.isp != null && profile.isp != profile.name)
+                          profile.isp!,
+                        'была ${_seen(profile.lastSeen)}',
+                      ].join(' · '),
+                      below: profile.asn == g.asn
+                          ? const StatusLine(
+                              tone: Tone.success,
+                              text: 'Вы сейчас в этой сети',
+                            )
+                          : null,
+                      trailing: Icon(
+                        LucideIcons.chevronRight,
+                        size: 20,
+                        color: p.muted,
+                      ),
+                      onTap: () => Navigator.of(context).push(
+                        NcPageRoute<void>(
+                          builder: (_) => ProfilePage(asn: profile.asn),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
         ],
       ],
@@ -195,7 +243,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final ok = await showNcDialog(
       context,
       title: 'Забыть сеть «${profile.name}»?',
-      message: 'Лаунчер забудет её стратегию и настройки. Когда вы снова окажетесь в этой сети, '
+      message:
+          'Лаунчер забудет её стратегию и настройки. Когда вы снова окажетесь в этой сети, '
           'он предложит подобрать стратегию.',
       confirmLabel: 'Забыть',
       danger: true,
@@ -212,14 +261,24 @@ class _ProfilePageState extends State<ProfilePage> {
     final profile = c.profileFor(widget.asn);
     if (profile == null) {
       return NcPage(
-        header: appHeader(context, c, title: 'Сеть', onBack: () => Navigator.of(context).pop()),
+        header: appHeader(
+          context,
+          c,
+          title: 'Сеть',
+          onBack: () => Navigator.of(context).pop(),
+        ),
         children: const [PageTitle('Сети больше нет')],
       );
     }
     final isCurrent = profile.asn == c.guard.asn;
 
     return NcPage(
-      header: appHeader(context, c, title: profile.name, onBack: () => Navigator.of(context).pop()),
+      header: appHeader(
+        context,
+        c,
+        title: profile.name,
+        onBack: () => Navigator.of(context).pop(),
+      ),
       footer: appFooter(c),
       children: [
         ...importantRows(context, c),
@@ -247,65 +306,76 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 16),
         Appear(
           index: 2,
-          child: NcSettingsCard(children: [
-            NcSettingRow(
-              title: 'Zapret здесь не нужен',
-              description: 'Например, в офисе с корпоративным VPN. В этой сети лаунчер выключит zapret, '
-                  'а в другой — включит снова.',
-              // Отметка текущей сети выключает zapret сразу; при смене сети — только сторож.
-              below: profile.zapretOff && !c.settings.networkGuard
-                  ? const StatusLine(
-                      tone: Tone.neutral,
-                      text: 'При смене сети переключит, когда включено «Следить за сетью»',
-                    )
-                  : null,
-              trailing: NcSwitch(
-                value: profile.zapretOff,
-                label: 'Zapret здесь не нужен',
-                onChanged: (v) => c.setProfileZapretOff(profile.asn, v),
-              ),
-            ),
-            if (!profile.zapretOff) ...[
+          child: NcSettingsCard(
+            children: [
               NcSettingRow(
-                title: 'Стратегия',
-                description: '«${_strategyTitle(c, profile.strategy)}»'
-                    '${isCurrent ? ' — работает сейчас' : ''}',
-                trailing: Icon(LucideIcons.chevronRight, size: 20, color: p.muted),
-                onTap: c.install == null
-                    ? null
-                    : () => Navigator.of(context).push(NcPageRoute<void>(
-                          builder: (_) => StrategyPickerPage(
-                            title: 'Стратегия для «${profile.name}»',
-                            selected: profile.strategy,
-                            onSelected: (s) => c.setProfileStrategy(profile.asn, s),
-                          ),
-                        )),
-              ),
-              NcSettingRow(
-                title: 'Игровой фильтр',
-                description: switch (profile.gameFilter) {
-                  GameFilterMode.disabled => 'Выключен',
-                  GameFilterMode.all => 'TCP и UDP',
-                  GameFilterMode.tcp => 'TCP',
-                  GameFilterMode.udp => 'UDP',
-                },
-              ),
-              NcSettingRow(
-                title: 'IPSet',
-                description: switch (profile.ipset) {
-                  IpsetMode.none => 'Выключен',
-                  IpsetMode.loaded => 'По списку',
-                  IpsetMode.any => 'Все адреса',
-                },
-                below: Text(
-                  isCurrent
-                      ? 'Фильтр и IPSet меняются на главной — профиль запомнит.'
-                      : 'Фильтр и IPSet запомнятся, когда поменяете их на главной в этой сети.',
-                  style: NcType.caption.copyWith(color: p.muted),
+                title: 'Zapret здесь не нужен',
+                description:
+                    'Например, в офисе с корпоративным VPN. В этой сети лаунчер выключит zapret, '
+                    'а в другой — включит снова.',
+                // Отметка текущей сети выключает zapret сразу; при смене сети — только сторож.
+                below: profile.zapretOff && !c.settings.networkGuard
+                    ? const StatusLine(
+                        tone: Tone.neutral,
+                        text: 'При смене сети переключит, когда включено «Следить за сетью»',
+                      )
+                    : null,
+                trailing: NcSwitch(
+                  value: profile.zapretOff,
+                  label: 'Zapret здесь не нужен',
+                  onChanged: (v) => c.setProfileZapretOff(profile.asn, v),
                 ),
               ),
+              if (!profile.zapretOff) ...[
+                NcSettingRow(
+                  title: 'Стратегия',
+                  description:
+                      '«${_strategyTitle(c, profile.strategy)}»'
+                      '${isCurrent ? ' — работает сейчас' : ''}',
+                  trailing: Icon(
+                    LucideIcons.chevronRight,
+                    size: 20,
+                    color: p.muted,
+                  ),
+                  onTap: c.install == null
+                      ? null
+                      : () => Navigator.of(context).push(
+                          NcPageRoute<void>(
+                            builder: (_) => StrategyPickerPage(
+                              title: 'Стратегия для «${profile.name}»',
+                              selected: profile.strategy,
+                              onSelected: (s) =>
+                                  c.setProfileStrategy(profile.asn, s),
+                            ),
+                          ),
+                        ),
+                ),
+                NcSettingRow(
+                  title: 'Игровой фильтр',
+                  description: switch (profile.gameFilter) {
+                    GameFilterMode.disabled => 'Выключен',
+                    GameFilterMode.all => 'TCP и UDP',
+                    GameFilterMode.tcp => 'TCP',
+                    GameFilterMode.udp => 'UDP',
+                  },
+                ),
+                NcSettingRow(
+                  title: 'IPSet',
+                  description: switch (profile.ipset) {
+                    IpsetMode.none => 'Выключен',
+                    IpsetMode.loaded => 'По списку',
+                    IpsetMode.any => 'Все адреса',
+                  },
+                  below: Text(
+                    isCurrent
+                        ? 'Фильтр и IPSet меняются на главной — профиль запомнит.'
+                        : 'Фильтр и IPSet запомнятся, когда поменяете их на главной в этой сети.',
+                    style: NcType.caption.copyWith(color: p.muted),
+                  ),
+                ),
+              ],
             ],
-          ]),
+          ),
         ),
         const SizedBox(height: 16),
         Align(
@@ -339,25 +409,33 @@ class StrategyPickerPage extends StatelessWidget {
     final c = AppScope.of(context);
     final p = context.palette;
     return NcPage(
-      header: appHeader(context, c, title: 'Стратегия', onBack: () => Navigator.of(context).pop()),
+      header: appHeader(
+        context,
+        c,
+        title: 'Стратегия',
+        onBack: () => Navigator.of(context).pop(),
+      ),
       footer: appFooter(c),
       children: [
         Appear(index: 0, child: PageTitle(title)),
         const SizedBox(height: 24),
         Appear(
           index: 1,
-          child: NcSettingsCard(children: [
-            for (final s in c.install?.strategies ?? const <Strategy>[])
-              NcSettingRow(
-                title: s.title,
-                description: s.fileName,
-                trailing: s.id == selected ? Icon(LucideIcons.check, size: 20, color: p.text) : null,
-                onTap: () {
-                  onSelected(s);
-                  Navigator.of(context).pop();
-                },
-              ),
-          ]),
+          child: NcSettingsCard(
+            children: [
+              for (final s in c.install?.strategies ?? const <Strategy>[])
+                NcSettingRow(
+                  title: s.title,
+                  trailing: s.id == selected
+                      ? Icon(LucideIcons.check, size: 20, color: p.text)
+                      : null,
+                  onTap: () {
+                    onSelected(s);
+                    Navigator.of(context).pop();
+                  },
+                ),
+            ],
+          ),
         ),
       ],
     );

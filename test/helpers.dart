@@ -3,11 +3,11 @@ import 'package:zapret_launcher/src/platform/autostart.dart';
 
 /// Сторож сети без запросов страны и чтения адаптеров — для тестов приложения.
 NetworkGuard quietGuard(GuardedZapret zapret, ProfileHook _) => NetworkGuard(
-      zapret: zapret,
-      enabled: () => false,
-      countryEnabled: () => false,
-      fingerprint: () async => 'test',
-    );
+  zapret: zapret,
+  enabled: () => false,
+  countryEnabled: () => false,
+  fingerprint: () async => 'test',
+);
 
 /// Автозапуск без Планировщика заданий: помнит состояние в памяти.
 class FakeAutostart implements LauncherAutostart {

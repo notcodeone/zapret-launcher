@@ -5,17 +5,27 @@ import '../controller.dart';
 import '../platform/win32.dart' as win;
 import '../ui/ui.dart';
 
-/// Строки важного, общие для всех страниц: права, ошибка, чужой winws.exe.
-List<Widget> importantRows(BuildContext context, AppController c) {
+/// Строки важного, общие для всех страниц: ошибка, чужой winws.exe. Про права
+/// администратора — только где без них не обойтись ([admin]): на главной и в подборе.
+/// На остальных страницах недоступное объясняет само себя.
+List<Widget> importantRows(
+  BuildContext context,
+  AppController c, {
+  bool admin = false,
+}) {
   final rows = <Widget>[
-    if (!c.elevated)
+    if (admin && !c.elevated)
       NoticeRow(
         kind: NoticeKind.danger,
         icon: LucideIcons.shieldAlert,
         title: 'Нужны права администратора',
-        detail: 'Без них zapret не запустится и не остановится. '
+        detail:
+            'Без них zapret не запустится и не остановится. '
             'Перезапустите лаунчер — Windows спросит разрешение.',
-        action: NcButton.danger(label: 'Перезапустить', onPressed: c.restartElevated),
+        action: NcButton.danger(
+          label: 'Перезапустить',
+          onPressed: c.restartElevated,
+        ),
       ),
     if (c.error != null)
       NoticeRow(
@@ -29,7 +39,8 @@ List<Widget> importantRows(BuildContext context, AppController c) {
       NoticeRow(
         kind: NoticeKind.decision,
         title: 'winws.exe запущен из другой папки',
-        detail: '${c.runtime.activeRoot} — остановите его, чтобы запустить zapret из лаунчера.',
+        detail:
+            '${c.runtime.activeRoot} — остановите его, чтобы запустить zapret из лаунчера.',
       ),
   ];
   return [
@@ -39,8 +50,13 @@ List<Widget> importantRows(BuildContext context, AppController c) {
 }
 
 /// Шапка с кнопкой настроек.
-NcHeader appHeader(BuildContext context, AppController c,
-    {String? title, VoidCallback? onBack, List<Widget> actions = const []}) {
+NcHeader appHeader(
+  BuildContext context,
+  AppController c, {
+  String? title,
+  VoidCallback? onBack,
+  List<Widget> actions = const [],
+}) {
   return NcHeader(
     title: title,
     onBack: onBack,
@@ -52,11 +68,11 @@ NcHeader appHeader(BuildContext context, AppController c,
 /// Подвал: рядом с версией лаунчера — тихая кнопка его обновления.
 /// Обновления zapret — в оповещении и настройках, а то и сами.
 NcFooter appFooter(AppController c) => NcFooter(
-      onAuthorTap: () => win.shellExecute('https://github.com/notcodeone'),
-      trailing: c.launcherUpdateAvailable
-          ? NcQuietButton(
-              label: 'Обновить до ${c.launcherLatest!.version}',
-              onPressed: c.busy == null ? c.updateLauncher : null,
-            )
-          : null,
-    );
+  onAuthorTap: () => win.shellExecute('https://github.com/notcodeone'),
+  trailing: c.launcherUpdateAvailable
+      ? NcQuietButton(
+          label: 'Обновить до ${c.launcherLatest!.version}',
+          onPressed: c.busy == null ? c.updateLauncher : null,
+        )
+      : null,
+);

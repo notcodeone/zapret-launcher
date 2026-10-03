@@ -34,7 +34,10 @@ void main() {
     });
 
     test('без строки winws.exe — ошибка', () {
-      expect(() => parseWinwsArgs('@echo off\r\necho hi\r\n'), throwsFormatException);
+      expect(
+        () => parseWinwsArgs('@echo off\r\necho hi\r\n'),
+        throwsFormatException,
+      );
     });
 
     test('понимает CRLF', () {
@@ -64,17 +67,33 @@ void main() {
         r'--hostlist=C:\z\lists\list general.txt',
         '--new',
       ]);
-      expect(cmd, r'"C:\z\bin\winws.exe" --wf-tcp=80,443 --hostlist="C:\z\lists\list general.txt" --new');
+      expect(
+        cmd,
+        r'"C:\z\bin\winws.exe" --wf-tcp=80,443 --hostlist="C:\z\lists\list general.txt" --new',
+      );
     });
 
     test('удваивает обратный слэш перед закрывающей кавычкой', () {
-      expect(buildCommandLine('a.exe', [r'--dir=C:\z\']), r'"a.exe" --dir="C:\z\\"');
+      expect(
+        buildCommandLine('a.exe', [r'--dir=C:\z\']),
+        r'"a.exe" --dir="C:\z\\"',
+      );
     });
   });
 
   test('естественная сортировка: ALT2 раньше ALT10', () {
-    final names = ['general (ALT10).bat', 'general (ALT2).bat', 'general.bat', 'general (ALT).bat'];
+    final names = [
+      'general (ALT10).bat',
+      'general (ALT2).bat',
+      'general.bat',
+      'general (ALT).bat',
+    ];
     names.sort((a, b) => naturalKey(a).compareTo(naturalKey(b)));
-    expect(names, ['general (ALT).bat', 'general (ALT2).bat', 'general (ALT10).bat', 'general.bat']);
+    expect(names, [
+      'general (ALT).bat',
+      'general (ALT2).bat',
+      'general (ALT10).bat',
+      'general.bat',
+    ]);
   });
 }

@@ -201,118 +201,289 @@ final class BROWSEINFOW extends Struct {
 
 // ── Функции ─────────────────────────────────────────────────────────────────
 
-final _GetLastError =
-    _kernel32.lookupFunction<Uint32 Function(), int Function()>('GetLastError', isLeaf: true);
+final _GetLastError = _kernel32
+    .lookupFunction<Uint32 Function(), int Function()>(
+      'GetLastError',
+      isLeaf: true,
+    );
 final _CloseHandle = _kernel32
-    .lookupFunction<Int32 Function(IntPtr), int Function(int)>('CloseHandle', isLeaf: true);
-final _CreateToolhelp32Snapshot = _kernel32.lookupFunction<IntPtr Function(Uint32, Uint32),
-    int Function(int, int)>('CreateToolhelp32Snapshot', isLeaf: true);
-final _Process32FirstW = _kernel32.lookupFunction<
-    Int32 Function(IntPtr, Pointer<PROCESSENTRY32W>),
-    int Function(int, Pointer<PROCESSENTRY32W>)>('Process32FirstW', isLeaf: true);
-final _Process32NextW = _kernel32.lookupFunction<
-    Int32 Function(IntPtr, Pointer<PROCESSENTRY32W>),
-    int Function(int, Pointer<PROCESSENTRY32W>)>('Process32NextW', isLeaf: true);
-final _OpenProcess = _kernel32.lookupFunction<IntPtr Function(Uint32, Int32, Uint32),
-    int Function(int, int, int)>('OpenProcess', isLeaf: true);
-final _TerminateProcess = _kernel32.lookupFunction<Int32 Function(IntPtr, Uint32),
-    int Function(int, int)>('TerminateProcess', isLeaf: true);
-final _WaitForSingleObject = _kernel32.lookupFunction<Uint32 Function(IntPtr, Uint32),
-    int Function(int, int)>('WaitForSingleObject');
-final _QueryFullProcessImageNameW = _kernel32.lookupFunction<
-    Int32 Function(IntPtr, Uint32, Pointer<Utf16>, Pointer<Uint32>),
-    int Function(int, int, Pointer<Utf16>, Pointer<Uint32>)>('QueryFullProcessImageNameW',
-    isLeaf: true);
+    .lookupFunction<Int32 Function(IntPtr), int Function(int)>(
+      'CloseHandle',
+      isLeaf: true,
+    );
+final _CreateToolhelp32Snapshot = _kernel32
+    .lookupFunction<IntPtr Function(Uint32, Uint32), int Function(int, int)>(
+      'CreateToolhelp32Snapshot',
+      isLeaf: true,
+    );
+final _Process32FirstW = _kernel32
+    .lookupFunction<
+      Int32 Function(IntPtr, Pointer<PROCESSENTRY32W>),
+      int Function(int, Pointer<PROCESSENTRY32W>)
+    >('Process32FirstW', isLeaf: true);
+final _Process32NextW = _kernel32
+    .lookupFunction<
+      Int32 Function(IntPtr, Pointer<PROCESSENTRY32W>),
+      int Function(int, Pointer<PROCESSENTRY32W>)
+    >('Process32NextW', isLeaf: true);
+final _OpenProcess = _kernel32
+    .lookupFunction<
+      IntPtr Function(Uint32, Int32, Uint32),
+      int Function(int, int, int)
+    >('OpenProcess', isLeaf: true);
+final _TerminateProcess = _kernel32
+    .lookupFunction<Int32 Function(IntPtr, Uint32), int Function(int, int)>(
+      'TerminateProcess',
+      isLeaf: true,
+    );
+final _WaitForSingleObject = _kernel32
+    .lookupFunction<Uint32 Function(IntPtr, Uint32), int Function(int, int)>(
+      'WaitForSingleObject',
+    );
+final _QueryFullProcessImageNameW = _kernel32
+    .lookupFunction<
+      Int32 Function(IntPtr, Uint32, Pointer<Utf16>, Pointer<Uint32>),
+      int Function(int, int, Pointer<Utf16>, Pointer<Uint32>)
+    >('QueryFullProcessImageNameW', isLeaf: true);
 final _GetCurrentProcess = _kernel32
-    .lookupFunction<IntPtr Function(), int Function()>('GetCurrentProcess', isLeaf: true);
+    .lookupFunction<IntPtr Function(), int Function()>(
+      'GetCurrentProcess',
+      isLeaf: true,
+    );
 
-final _OpenProcessToken = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Uint32, Pointer<IntPtr>),
-    int Function(int, int, Pointer<IntPtr>)>('OpenProcessToken', isLeaf: true);
-final _GetTokenInformation = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Int32, Pointer<Void>, Uint32, Pointer<Uint32>),
-    int Function(int, int, Pointer<Void>, int, Pointer<Uint32>)>('GetTokenInformation',
-    isLeaf: true);
+final _OpenProcessToken = _advapi32
+    .lookupFunction<
+      Int32 Function(IntPtr, Uint32, Pointer<IntPtr>),
+      int Function(int, int, Pointer<IntPtr>)
+    >('OpenProcessToken', isLeaf: true);
+final _GetTokenInformation = _advapi32
+    .lookupFunction<
+      Int32 Function(IntPtr, Int32, Pointer<Void>, Uint32, Pointer<Uint32>),
+      int Function(int, int, Pointer<Void>, int, Pointer<Uint32>)
+    >('GetTokenInformation', isLeaf: true);
 
-final _OpenSCManagerW = _advapi32.lookupFunction<
-    IntPtr Function(Pointer<Utf16>, Pointer<Utf16>, Uint32),
-    int Function(Pointer<Utf16>, Pointer<Utf16>, int)>('OpenSCManagerW', isLeaf: true);
-final _OpenServiceW = _advapi32.lookupFunction<
-    IntPtr Function(IntPtr, Pointer<Utf16>, Uint32),
-    int Function(int, Pointer<Utf16>, int)>('OpenServiceW', isLeaf: true);
+final _OpenSCManagerW = _advapi32
+    .lookupFunction<
+      IntPtr Function(Pointer<Utf16>, Pointer<Utf16>, Uint32),
+      int Function(Pointer<Utf16>, Pointer<Utf16>, int)
+    >('OpenSCManagerW', isLeaf: true);
+final _OpenServiceW = _advapi32
+    .lookupFunction<
+      IntPtr Function(IntPtr, Pointer<Utf16>, Uint32),
+      int Function(int, Pointer<Utf16>, int)
+    >('OpenServiceW', isLeaf: true);
 final _CloseServiceHandle = _advapi32
-    .lookupFunction<Int32 Function(IntPtr), int Function(int)>('CloseServiceHandle', isLeaf: true);
-final _QueryServiceStatus = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Pointer<SERVICE_STATUS>),
-    int Function(int, Pointer<SERVICE_STATUS>)>('QueryServiceStatus', isLeaf: true);
-final _CreateServiceW = _advapi32.lookupFunction<
-    IntPtr Function(IntPtr, Pointer<Utf16>, Pointer<Utf16>, Uint32, Uint32, Uint32, Uint32,
-        Pointer<Utf16>, Pointer<Utf16>, Pointer<Uint32>, Pointer<Utf16>, Pointer<Utf16>,
-        Pointer<Utf16>),
-    int Function(int, Pointer<Utf16>, Pointer<Utf16>, int, int, int, int, Pointer<Utf16>,
-        Pointer<Utf16>, Pointer<Uint32>, Pointer<Utf16>, Pointer<Utf16>,
-        Pointer<Utf16>)>('CreateServiceW', isLeaf: true);
-final _ChangeServiceConfig2W = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Uint32, Pointer<Void>),
-    int Function(int, int, Pointer<Void>)>('ChangeServiceConfig2W', isLeaf: true);
-final _StartServiceW = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Uint32, Pointer<Pointer<Utf16>>),
-    int Function(int, int, Pointer<Pointer<Utf16>>)>('StartServiceW', isLeaf: true);
-final _ControlService = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Uint32, Pointer<SERVICE_STATUS>),
-    int Function(int, int, Pointer<SERVICE_STATUS>)>('ControlService', isLeaf: true);
+    .lookupFunction<Int32 Function(IntPtr), int Function(int)>(
+      'CloseServiceHandle',
+      isLeaf: true,
+    );
+final _QueryServiceStatus = _advapi32
+    .lookupFunction<
+      Int32 Function(IntPtr, Pointer<SERVICE_STATUS>),
+      int Function(int, Pointer<SERVICE_STATUS>)
+    >('QueryServiceStatus', isLeaf: true);
+final _CreateServiceW = _advapi32
+    .lookupFunction<
+      IntPtr Function(
+        IntPtr,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Uint32,
+        Uint32,
+        Uint32,
+        Uint32,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Pointer<Uint32>,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+      ),
+      int Function(
+        int,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        int,
+        int,
+        int,
+        int,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Pointer<Uint32>,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+      )
+    >('CreateServiceW', isLeaf: true);
+final _ChangeServiceConfig2W = _advapi32
+    .lookupFunction<
+      Int32 Function(IntPtr, Uint32, Pointer<Void>),
+      int Function(int, int, Pointer<Void>)
+    >('ChangeServiceConfig2W', isLeaf: true);
+final _StartServiceW = _advapi32
+    .lookupFunction<
+      Int32 Function(IntPtr, Uint32, Pointer<Pointer<Utf16>>),
+      int Function(int, int, Pointer<Pointer<Utf16>>)
+    >('StartServiceW', isLeaf: true);
+final _ControlService = _advapi32
+    .lookupFunction<
+      Int32 Function(IntPtr, Uint32, Pointer<SERVICE_STATUS>),
+      int Function(int, int, Pointer<SERVICE_STATUS>)
+    >('ControlService', isLeaf: true);
 final _DeleteService = _advapi32
-    .lookupFunction<Int32 Function(IntPtr), int Function(int)>('DeleteService', isLeaf: true);
+    .lookupFunction<Int32 Function(IntPtr), int Function(int)>(
+      'DeleteService',
+      isLeaf: true,
+    );
 
-final _RegSetKeyValueW = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Pointer<Utf16>, Pointer<Utf16>, Uint32, Pointer<Void>, Uint32),
-    int Function(int, Pointer<Utf16>, Pointer<Utf16>, int, Pointer<Void>, int)>(
-    'RegSetKeyValueW',
-    isLeaf: true);
-final _RegGetValueW = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Pointer<Utf16>, Pointer<Utf16>, Uint32, Pointer<Uint32>,
-        Pointer<Void>, Pointer<Uint32>),
-    int Function(int, Pointer<Utf16>, Pointer<Utf16>, int, Pointer<Uint32>, Pointer<Void>,
-        Pointer<Uint32>)>('RegGetValueW', isLeaf: true);
+final _RegSetKeyValueW = _advapi32
+    .lookupFunction<
+      Int32 Function(
+        IntPtr,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Uint32,
+        Pointer<Void>,
+        Uint32,
+      ),
+      int Function(int, Pointer<Utf16>, Pointer<Utf16>, int, Pointer<Void>, int)
+    >('RegSetKeyValueW', isLeaf: true);
+final _RegGetValueW = _advapi32
+    .lookupFunction<
+      Int32 Function(
+        IntPtr,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Uint32,
+        Pointer<Uint32>,
+        Pointer<Void>,
+        Pointer<Uint32>,
+      ),
+      int Function(
+        int,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        int,
+        Pointer<Uint32>,
+        Pointer<Void>,
+        Pointer<Uint32>,
+      )
+    >('RegGetValueW', isLeaf: true);
 
-final _RegOpenKeyExW = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Pointer<Utf16>, Uint32, Uint32, Pointer<IntPtr>),
-    int Function(int, Pointer<Utf16>, int, int, Pointer<IntPtr>)>('RegOpenKeyExW', isLeaf: true);
-final _RegEnumKeyExW = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Uint32, Pointer<Utf16>, Pointer<Uint32>, Pointer<Uint32>,
-        Pointer<Utf16>, Pointer<Uint32>, Pointer<Void>),
-    int Function(int, int, Pointer<Utf16>, Pointer<Uint32>, Pointer<Uint32>, Pointer<Utf16>,
-        Pointer<Uint32>, Pointer<Void>)>('RegEnumKeyExW', isLeaf: true);
+final _RegOpenKeyExW = _advapi32
+    .lookupFunction<
+      Int32 Function(IntPtr, Pointer<Utf16>, Uint32, Uint32, Pointer<IntPtr>),
+      int Function(int, Pointer<Utf16>, int, int, Pointer<IntPtr>)
+    >('RegOpenKeyExW', isLeaf: true);
+final _RegEnumKeyExW = _advapi32
+    .lookupFunction<
+      Int32 Function(
+        IntPtr,
+        Uint32,
+        Pointer<Utf16>,
+        Pointer<Uint32>,
+        Pointer<Uint32>,
+        Pointer<Utf16>,
+        Pointer<Uint32>,
+        Pointer<Void>,
+      ),
+      int Function(
+        int,
+        int,
+        Pointer<Utf16>,
+        Pointer<Uint32>,
+        Pointer<Uint32>,
+        Pointer<Utf16>,
+        Pointer<Uint32>,
+        Pointer<Void>,
+      )
+    >('RegEnumKeyExW', isLeaf: true);
 final _RegCloseKey = _advapi32
-    .lookupFunction<Int32 Function(IntPtr), int Function(int)>('RegCloseKey', isLeaf: true);
-final _EnumServicesStatusExW = _advapi32.lookupFunction<
-    Int32 Function(IntPtr, Int32, Uint32, Uint32, Pointer<Uint8>, Uint32, Pointer<Uint32>,
-        Pointer<Uint32>, Pointer<Uint32>, Pointer<Utf16>),
-    int Function(int, int, int, int, Pointer<Uint8>, int, Pointer<Uint32>, Pointer<Uint32>,
-        Pointer<Uint32>, Pointer<Utf16>)>('EnumServicesStatusExW', isLeaf: true);
+    .lookupFunction<Int32 Function(IntPtr), int Function(int)>(
+      'RegCloseKey',
+      isLeaf: true,
+    );
+final _EnumServicesStatusExW = _advapi32
+    .lookupFunction<
+      Int32 Function(
+        IntPtr,
+        Int32,
+        Uint32,
+        Uint32,
+        Pointer<Uint8>,
+        Uint32,
+        Pointer<Uint32>,
+        Pointer<Uint32>,
+        Pointer<Uint32>,
+        Pointer<Utf16>,
+      ),
+      int Function(
+        int,
+        int,
+        int,
+        int,
+        Pointer<Uint8>,
+        int,
+        Pointer<Uint32>,
+        Pointer<Uint32>,
+        Pointer<Uint32>,
+        Pointer<Utf16>,
+      )
+    >('EnumServicesStatusExW', isLeaf: true);
 
-final _ShellExecuteW = _shell32.lookupFunction<
-    IntPtr Function(IntPtr, Pointer<Utf16>, Pointer<Utf16>, Pointer<Utf16>, Pointer<Utf16>,
-        Int32),
-    int Function(int, Pointer<Utf16>, Pointer<Utf16>, Pointer<Utf16>, Pointer<Utf16>,
-        int)>('ShellExecuteW');
-final _SHBrowseForFolderW = _shell32.lookupFunction<
-    Pointer<Void> Function(Pointer<BROWSEINFOW>),
-    Pointer<Void> Function(Pointer<BROWSEINFOW>)>('SHBrowseForFolderW');
-final _SHGetPathFromIDListW = _shell32.lookupFunction<
-    Int32 Function(Pointer<Void>, Pointer<Utf16>),
-    int Function(Pointer<Void>, Pointer<Utf16>)>('SHGetPathFromIDListW');
+final _ShellExecuteW = _shell32
+    .lookupFunction<
+      IntPtr Function(
+        IntPtr,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Int32,
+      ),
+      int Function(
+        int,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        int,
+      )
+    >('ShellExecuteW');
+final _SHBrowseForFolderW = _shell32
+    .lookupFunction<
+      Pointer<Void> Function(Pointer<BROWSEINFOW>),
+      Pointer<Void> Function(Pointer<BROWSEINFOW>)
+    >('SHBrowseForFolderW');
+final _SHGetPathFromIDListW = _shell32
+    .lookupFunction<
+      Int32 Function(Pointer<Void>, Pointer<Utf16>),
+      int Function(Pointer<Void>, Pointer<Utf16>)
+    >('SHGetPathFromIDListW');
 final _CoTaskMemFree = _ole32
-    .lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>('CoTaskMemFree');
-final _CoInitializeEx = _ole32.lookupFunction<Int32 Function(Pointer<Void>, Uint32),
-    int Function(Pointer<Void>, int)>('CoInitializeEx');
-final _GetOpenFileNameW = _comdlg32.lookupFunction<Int32 Function(Pointer<OPENFILENAMEW>),
-    int Function(Pointer<OPENFILENAMEW>)>('GetOpenFileNameW');
-final _GetSaveFileNameW = _comdlg32.lookupFunction<Int32 Function(Pointer<OPENFILENAMEW>),
-    int Function(Pointer<OPENFILENAMEW>)>('GetSaveFileNameW');
-final _FindWindowW = _user32.lookupFunction<
-    IntPtr Function(Pointer<Utf16>, Pointer<Utf16>),
-    int Function(Pointer<Utf16>, Pointer<Utf16>)>('FindWindowW');
+    .lookupFunction<Void Function(Pointer<Void>), void Function(Pointer<Void>)>(
+      'CoTaskMemFree',
+    );
+final _CoInitializeEx = _ole32
+    .lookupFunction<
+      Int32 Function(Pointer<Void>, Uint32),
+      int Function(Pointer<Void>, int)
+    >('CoInitializeEx');
+final _GetOpenFileNameW = _comdlg32
+    .lookupFunction<
+      Int32 Function(Pointer<OPENFILENAMEW>),
+      int Function(Pointer<OPENFILENAMEW>)
+    >('GetOpenFileNameW');
+final _GetSaveFileNameW = _comdlg32
+    .lookupFunction<
+      Int32 Function(Pointer<OPENFILENAMEW>),
+      int Function(Pointer<OPENFILENAMEW>)
+    >('GetSaveFileNameW');
+final _FindWindowW = _user32
+    .lookupFunction<
+      IntPtr Function(Pointer<Utf16>, Pointer<Utf16>),
+      int Function(Pointer<Utf16>, Pointer<Utf16>)
+    >('FindWindowW');
 
 // ── Ошибки ──────────────────────────────────────────────────────────────────
 
@@ -409,9 +580,16 @@ bool isElevated() {
   final elevation = calloc<Uint32>();
   final returned = calloc<Uint32>();
   try {
-    if (_OpenProcessToken(_GetCurrentProcess(), _TOKEN_QUERY, token) == 0) return false;
+    if (_OpenProcessToken(_GetCurrentProcess(), _TOKEN_QUERY, token) == 0) {
+      return false;
+    }
     final ok = _GetTokenInformation(
-        token.value, _TokenElevation, elevation.cast(), sizeOf<Uint32>(), returned);
+      token.value,
+      _TokenElevation,
+      elevation.cast(),
+      sizeOf<Uint32>(),
+      returned,
+    );
     _CloseHandle(token.value);
     return ok != 0 && elevation.value != 0;
   } finally {
@@ -423,7 +601,12 @@ bool isElevated() {
 
 /// ShellExecute: открыть ссылку, папку или запустить программу.
 /// Возвращает false, если Windows отказала (в том числе отмена UAC).
-bool shellExecute(String file, {String verb = 'open', String? parameters, String? directory}) {
+bool shellExecute(
+  String file, {
+  String verb = 'open',
+  String? parameters,
+  String? directory,
+}) {
   return using((arena) {
     final r = _ShellExecuteW(
       0,
@@ -439,23 +622,35 @@ bool shellExecute(String file, {String verb = 'open', String? parameters, String
 
 /// Перезапускает текущую программу от имени администратора.
 /// true — новый процесс запущен (текущий можно закрывать).
-bool relaunchElevated() => shellExecute(Platform.resolvedExecutable,
-    verb: 'runas', parameters: '--relaunch', directory: Directory.current.path);
+bool relaunchElevated() => shellExecute(
+  Platform.resolvedExecutable,
+  verb: 'runas',
+  parameters: '--relaunch',
+  directory: Directory.current.path,
+);
 
 // ── Службы ──────────────────────────────────────────────────────────────────
 
-enum ServiceState { stopped, startPending, stopPending, running, continuePending, pausePending, paused }
+enum ServiceState {
+  stopped,
+  startPending,
+  stopPending,
+  running,
+  continuePending,
+  pausePending,
+  paused,
+}
 
 ServiceState _stateFromCode(int code) => switch (code) {
-      1 => ServiceState.stopped,
-      2 => ServiceState.startPending,
-      3 => ServiceState.stopPending,
-      4 => ServiceState.running,
-      5 => ServiceState.continuePending,
-      6 => ServiceState.pausePending,
-      7 => ServiceState.paused,
-      _ => ServiceState.stopped,
-    };
+  1 => ServiceState.stopped,
+  2 => ServiceState.startPending,
+  3 => ServiceState.stopPending,
+  4 => ServiceState.running,
+  5 => ServiceState.continuePending,
+  6 => ServiceState.pausePending,
+  7 => ServiceState.paused,
+  _ => ServiceState.stopped,
+};
 
 class ServiceInfo {
   const ServiceInfo({required this.state, this.binaryPath});
@@ -486,16 +681,25 @@ ServiceInfo? queryService(String name) {
     final scm = _OpenSCManagerW(nullptr, nullptr, _SC_MANAGER_CONNECT);
     if (scm == 0) return null;
     try {
-      final svc = _OpenServiceW(scm, name.toNativeUtf16(allocator: arena), _SERVICE_QUERY_STATUS);
+      final svc = _OpenServiceW(
+        scm,
+        name.toNativeUtf16(allocator: arena),
+        _SERVICE_QUERY_STATUS,
+      );
       if (svc == 0) return null;
       try {
         final status = arena<SERVICE_STATUS>();
         if (_QueryServiceStatus(svc, status) == 0) return null;
         // QueryServiceConfig не отдаёт командную строку длиннее 8 КБ (ошибка 1734),
         // а у zapret она как раз такая — поэтому читаем ImagePath из реестра.
-        final binPath =
-            readRegistryString('SYSTEM\\CurrentControlSet\\Services\\$name', 'ImagePath');
-        return ServiceInfo(state: _stateFromCode(status.ref.dwCurrentState), binaryPath: binPath);
+        final binPath = readRegistryString(
+          'SYSTEM\\CurrentControlSet\\Services\\$name',
+          'ImagePath',
+        );
+        return ServiceInfo(
+          state: _stateFromCode(status.ref.dwCurrentState),
+          binaryPath: binPath,
+        );
       } finally {
         _CloseServiceHandle(svc);
       }
@@ -516,7 +720,11 @@ class ServiceEntry {
 /// Службы Windows (не драйверы). [activeOnly] — только запущенные, как `sc query`.
 List<ServiceEntry> enumServices({bool activeOnly = true}) {
   return using((arena) {
-    final scm = _OpenSCManagerW(nullptr, nullptr, _SC_MANAGER_ENUMERATE_SERVICE);
+    final scm = _OpenSCManagerW(
+      nullptr,
+      nullptr,
+      _SC_MANAGER_ENUMERATE_SERVICE,
+    );
     if (scm == 0) return const <ServiceEntry>[];
     const bufSize = 64 * 1024;
     final buf = arena<Uint8>(bufSize);
@@ -526,19 +734,30 @@ List<ServiceEntry> enumServices({bool activeOnly = true}) {
     final out = <ServiceEntry>[];
     try {
       while (true) {
-        final ok = _EnumServicesStatusExW(scm, _SC_ENUM_PROCESS_INFO, _SERVICE_WIN32,
-            activeOnly ? _SERVICE_ACTIVE : _SERVICE_STATE_ALL, buf, bufSize, needed, returned,
-            resume, nullptr);
+        final ok = _EnumServicesStatusExW(
+          scm,
+          _SC_ENUM_PROCESS_INFO,
+          _SERVICE_WIN32,
+          activeOnly ? _SERVICE_ACTIVE : _SERVICE_STATE_ALL,
+          buf,
+          bufSize,
+          needed,
+          returned,
+          resume,
+          nullptr,
+        );
         final more = ok == 0 && _GetLastError() == _ERROR_MORE_DATA;
         if (ok == 0 && !more) break;
         final items = buf.cast<ENUM_SERVICE_STATUS_PROCESSW>();
         for (var i = 0; i < returned.value; i++) {
           final e = items[i];
-          out.add(ServiceEntry(
-            e.lpServiceName.toDartString(),
-            e.lpDisplayName == nullptr ? '' : e.lpDisplayName.toDartString(),
-            _stateFromCode(e.dwCurrentState),
-          ));
+          out.add(
+            ServiceEntry(
+              e.lpServiceName.toDartString(),
+              e.lpDisplayName == nullptr ? '' : e.lpDisplayName.toDartString(),
+              _stateFromCode(e.dwCurrentState),
+            ),
+          );
         }
         if (!more) break;
       }
@@ -605,10 +824,19 @@ void createService({
   });
 }
 
-void _withService(String name, int access, String what, void Function(int svc) body) {
+void _withService(
+  String name,
+  int access,
+  String what,
+  void Function(int svc) body,
+) {
   using((arena) {
     _withScm(_SC_MANAGER_CONNECT, (scm) {
-      final svc = _OpenServiceW(scm, name.toNativeUtf16(allocator: arena), access);
+      final svc = _OpenServiceW(
+        scm,
+        name.toNativeUtf16(allocator: arena),
+        access,
+      );
       if (svc == 0) {
         final code = _GetLastError();
         throw Win32Exception('$what: служба $name', code);
@@ -635,19 +863,24 @@ void startService(String name) {
 
 /// Отправляет команду остановки. Не ждёт — ожидание делает вызывающий код.
 void stopService(String name) {
-  _withService(name, _SERVICE_STOP | _SERVICE_QUERY_STATUS, 'Не удалось остановить', (svc) {
-    final status = calloc<SERVICE_STATUS>();
-    try {
-      if (_ControlService(svc, _SERVICE_CONTROL_STOP, status) == 0) {
-        final code = _GetLastError();
-        if (code != ERROR_SERVICE_NOT_ACTIVE) {
-          throw Win32Exception('Не удалось остановить службу $name', code);
+  _withService(
+    name,
+    _SERVICE_STOP | _SERVICE_QUERY_STATUS,
+    'Не удалось остановить',
+    (svc) {
+      final status = calloc<SERVICE_STATUS>();
+      try {
+        if (_ControlService(svc, _SERVICE_CONTROL_STOP, status) == 0) {
+          final code = _GetLastError();
+          if (code != ERROR_SERVICE_NOT_ACTIVE) {
+            throw Win32Exception('Не удалось остановить службу $name', code);
+          }
         }
+      } finally {
+        calloc.free(status);
       }
-    } finally {
-      calloc.free(status);
-    }
-  });
+    },
+  );
 }
 
 void deleteService(String name) {
@@ -664,18 +897,32 @@ void deleteService(String name) {
 // ── Реестр ──────────────────────────────────────────────────────────────────
 
 /// Строка из HKLM (или HKCU, если [currentUser]). null — значения нет.
-String? readRegistryString(String subKey, String valueName, {bool currentUser = false}) {
+String? readRegistryString(
+  String subKey,
+  String valueName, {
+  bool currentUser = false,
+}) {
   final root = currentUser ? _HKEY_CURRENT_USER : _HKEY_LOCAL_MACHINE;
   return using((arena) {
     final size = arena<Uint32>()..value = 0;
     final key = subKey.toNativeUtf16(allocator: arena);
     final value = valueName.toNativeUtf16(allocator: arena);
-    if (_RegGetValueW(root, key, value, _RRF_STRING, nullptr, nullptr, size) != 0 ||
+    if (_RegGetValueW(root, key, value, _RRF_STRING, nullptr, nullptr, size) !=
+            0 ||
         size.value == 0) {
       return null;
     }
     final buf = arena<Uint8>(size.value);
-    if (_RegGetValueW(root, key, value, _RRF_STRING, nullptr, buf.cast(), size) != 0) {
+    if (_RegGetValueW(
+          root,
+          key,
+          value,
+          _RRF_STRING,
+          nullptr,
+          buf.cast(),
+          size,
+        ) !=
+        0) {
       return null;
     }
     return buf.cast<Utf16>().toDartString();
@@ -683,13 +930,24 @@ String? readRegistryString(String subKey, String valueName, {bool currentUser = 
 }
 
 /// Число (REG_DWORD) из HKLM или HKCU. null — значения нет.
-int? readRegistryDword(String subKey, String valueName, {bool currentUser = false}) {
+int? readRegistryDword(
+  String subKey,
+  String valueName, {
+  bool currentUser = false,
+}) {
   final root = currentUser ? _HKEY_CURRENT_USER : _HKEY_LOCAL_MACHINE;
   return using((arena) {
     final data = arena<Uint32>();
     final size = arena<Uint32>()..value = sizeOf<Uint32>();
-    final r = _RegGetValueW(root, subKey.toNativeUtf16(allocator: arena),
-        valueName.toNativeUtf16(allocator: arena), _RRF_RT_REG_DWORD, nullptr, data.cast(), size);
+    final r = _RegGetValueW(
+      root,
+      subKey.toNativeUtf16(allocator: arena),
+      valueName.toNativeUtf16(allocator: arena),
+      _RRF_RT_REG_DWORD,
+      nullptr,
+      data.cast(),
+      size,
+    );
     return r == 0 ? data.value : null;
   });
 }
@@ -698,8 +956,13 @@ int? readRegistryDword(String subKey, String valueName, {bool currentUser = fals
 List<String> registrySubkeys(String subKey) {
   return using((arena) {
     final hkey = arena<IntPtr>();
-    if (_RegOpenKeyExW(_HKEY_LOCAL_MACHINE, subKey.toNativeUtf16(allocator: arena), 0,
-            _KEY_READ, hkey) !=
+    if (_RegOpenKeyExW(
+          _HKEY_LOCAL_MACHINE,
+          subKey.toNativeUtf16(allocator: arena),
+          0,
+          _KEY_READ,
+          hkey,
+        ) !=
         0) {
       return const <String>[];
     }
@@ -707,9 +970,18 @@ List<String> registrySubkeys(String subKey) {
     final name = arena<Uint16>(256).cast<Utf16>();
     final len = arena<Uint32>();
     try {
-      for (var i = 0;; i++) {
+      for (var i = 0; ; i++) {
         len.value = 256;
-        final r = _RegEnumKeyExW(hkey.value, i, name, len, nullptr, nullptr, nullptr, nullptr);
+        final r = _RegEnumKeyExW(
+          hkey.value,
+          i,
+          name,
+          len,
+          nullptr,
+          nullptr,
+          nullptr,
+          nullptr,
+        );
         if (r != 0) break;
         names.add(name.toDartString(length: len.value));
       }
@@ -738,10 +1010,12 @@ void writeRegistryString(String subKey, String valueName, String data) {
 // ── Выбор папки ─────────────────────────────────────────────────────────────
 
 int _mainWindow(Arena arena) => _FindWindowW(
-    'FLUTTER_RUNNER_WIN32_WINDOW'.toNativeUtf16(allocator: arena),
-    'ZapretLauncher'.toNativeUtf16(allocator: arena));
+  'FLUTTER_RUNNER_WIN32_WINDOW'.toNativeUtf16(allocator: arena),
+  'ZapretLauncher'.toNativeUtf16(allocator: arena),
+);
 
-const _textFilter = 'Текстовые файлы (*.txt)\u0000*.txt\u0000Все файлы\u0000*.*\u0000';
+const _textFilter =
+    'Текстовые файлы (*.txt)\u0000*.txt\u0000Все файлы\u0000*.*\u0000';
 
 /// Диалог «Открыть». null — пользователь отменил.
 String? pickOpenFile({required String title}) {
@@ -793,12 +1067,17 @@ String? pickSaveFile({required String title, required String fileName}) {
 /// Стандартный диалог выбора папки. null — пользователь отменил.
 String? pickFolder({required String title}) {
   return using((arena) {
-    _CoInitializeEx(nullptr, 0x2); // COINIT_APARTMENTTHREADED; повторный вызов безопасен.
+    _CoInitializeEx(
+      nullptr,
+      0x2,
+    ); // COINIT_APARTMENTTHREADED; повторный вызов безопасен.
     final info = arena<BROWSEINFOW>();
     final display = arena<Uint16>(260).cast<Utf16>();
     info.ref
-      ..hwndOwner = _FindWindowW('FLUTTER_RUNNER_WIN32_WINDOW'.toNativeUtf16(allocator: arena),
-          'ZapretLauncher'.toNativeUtf16(allocator: arena))
+      ..hwndOwner = _FindWindowW(
+        'FLUTTER_RUNNER_WIN32_WINDOW'.toNativeUtf16(allocator: arena),
+        'ZapretLauncher'.toNativeUtf16(allocator: arena),
+      )
       ..pidlRoot = nullptr
       ..pszDisplayName = display
       ..lpszTitle = title.toNativeUtf16(allocator: arena)

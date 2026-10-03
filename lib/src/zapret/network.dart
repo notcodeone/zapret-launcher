@@ -45,8 +45,10 @@ class NetworkReport {
     return ok == 0 ? ServiceHealth.down : ServiceHealth.partial;
   }
 
-  List<String> groupsWith(ServiceHealth h) =>
-      [for (final g in byGroup.keys) if (health(g) == h) g];
+  List<String> groupsWith(ServiceHealth h) => [
+    for (final g in byGroup.keys)
+      if (health(g) == h) g,
+  ];
 
   bool get allOk => targets.every((t) => t.ok);
 
@@ -54,5 +56,7 @@ class NetworkReport {
   bool get spoofed => targets.any((t) => t.outcome == ProbeOutcome.spoofed);
 
   /// Нет сети вообще: ни один адрес не найден.
-  bool get offline => targets.isNotEmpty && targets.every((t) => t.outcome == ProbeOutcome.noHost);
+  bool get offline =>
+      targets.isNotEmpty &&
+      targets.every((t) => t.outcome == ProbeOutcome.noHost);
 }

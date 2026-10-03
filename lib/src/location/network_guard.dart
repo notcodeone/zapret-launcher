@@ -19,7 +19,13 @@ enum AutoOffReason {
 }
 
 class AutoOff {
-  const AutoOff(this.reason, {required this.at, this.from, this.to, this.network});
+  const AutoOff(
+    this.reason, {
+    required this.at,
+    this.from,
+    this.to,
+    this.network,
+  });
 
   final AutoOffReason reason;
   final DateTime at;
@@ -91,11 +97,11 @@ class NetworkGuard extends ChangeNotifier {
     this.pollEvery = const Duration(seconds: 5),
     this.countryEvery = const Duration(minutes: 5),
     this.countryMaxAge = const Duration(minutes: 1),
-  })  : _lookup = lookup ?? lookupCountry,
-        _fingerprint = fingerprint ?? networkFingerprint,
-        _providerLookup = providerLookup ?? lookupProvider,
-        _providerEnabled = providerEnabled ?? (() => false),
-        _canControl = canControl ?? (() => true);
+  }) : _lookup = lookup ?? lookupCountry,
+       _fingerprint = fingerprint ?? networkFingerprint,
+       _providerLookup = providerLookup ?? lookupProvider,
+       _providerEnabled = providerEnabled ?? (() => false),
+       _canControl = canControl ?? (() => true);
 
   final ProviderLookup _providerLookup;
   final bool Function() _providerEnabled;
@@ -216,7 +222,10 @@ class NetworkGuard extends ChangeNotifier {
     final profile = await onNetwork?.call(startup: true);
     // Лаунчер открыли в сети, где zapret не нужен, а он работает — например, служба
     // включилась вместе с Windows.
-    if (profile?.decision == ProfileDecision.zapretOff && enabled() && zapret.running && !_disposed) {
+    if (profile?.decision == ProfileDecision.zapretOff &&
+        enabled() &&
+        zapret.running &&
+        !_disposed) {
       await currentProfileOff(profile!.network ?? 'эта');
     }
   }
@@ -240,12 +249,16 @@ class NetworkGuard extends ChangeNotifier {
   /// Пользователь включил zapret сам: запоминаем страну, автоматика сбрасывается.
   void userStarted() {
     autoOff = null;
-    final fresh = countryCheckedAt != null &&
+    final fresh =
+        countryCheckedAt != null &&
         DateTime.now().difference(countryCheckedAt!) < countryMaxAge;
     if (fresh && country != null) {
       baseline = country;
     } else {
-      unawaited(checkCountry(force: true).then((r) => baseline = r?.country ?? baseline));
+      unawaited(
+        checkCountry(force: true)
+            .then((r) => baseline = r?.country ?? baseline),
+      );
     }
     _notify();
   }
@@ -320,7 +333,9 @@ class NetworkGuard extends ChangeNotifier {
     final before = country;
     final r = await checkCountry(force: true);
     // VPN сменил сервер, а адреса компьютера остались прежними.
-    if (r != null && before != null && r.country != before) await networkChanged();
+    if (r != null && before != null && r.country != before) {
+      await networkChanged();
+    }
   }
 
   /// Подождать, пока лаунчер закончит своё (подбор стратегии, перезапуск). false — не дождались.
@@ -341,12 +356,24 @@ class NetworkGuard extends ChangeNotifier {
       return;
     }
     if (!_canControl() || !await _waitIdle()) return;
-    final off = AutoOff(AutoOffReason.profile,
-        at: DateTime.now(), from: baseline, to: country, network: network);
+    final off = AutoOff(
+      AutoOffReason.profile,
+      at: DateTime.now(),
+      from: baseline,
+      to: country,
+      network: network,
+    );
     if (zapret.running) {
-      if (!await zapret.stop(status: 'Выключаю zapret — в сети «$network» он не нужен…')) return;
+      if (!await zapret.stop(
+        status: 'Выключаю zapret — в сети «$network» он не нужен…',
+      )) {
+        return;
+      }
       autoOff = off;
-      onEvent?.call('Zapret выключен: сеть «$network»', 'В этой сети zapret не нужен — так отмечено в её профиле.');
+      onEvent?.call(
+        'Zapret выключен: сеть «$network»',
+        'В этой сети zapret не нужен — так отмечено в её профиле.',
+      );
     } else if (autoOff != null) {
       autoOff = off;
     }
@@ -355,7 +382,11 @@ class NetworkGuard extends ChangeNotifier {
 
   /// С текущей сети сняли отметку «zapret не нужен»: если выключали из-за неё — включаем.
   Future<void> currentProfileOn() async {
-    if (autoOff?.reason != AutoOffReason.profile || !_canControl() || !await _waitIdle()) return;
+    if (autoOff?.reason != AutoOffReason.profile ||
+        !_canControl() ||
+        !await _waitIdle()) {
+      return;
+    }
     if (zapret.running || await zapret.start()) {
       autoOff = null;
       baseline = country ?? baseline;
@@ -372,28 +403,41 @@ class NetworkGuard extends ChangeNotifier {
     handling = true;
     _notify();
     try {
-      final (country, _) = await (checkCountry(force: true), checkProvider(force: true)).wait;
+      final (country, _) = await (
+        checkCountry(force: true),
+        checkProvider(force: true),
+      ).wait;
       final now = country?.country;
       if (!await _waitIdle()) return;
-      final profile = await onNetwork?.call(startup: false) ??
+      final profile =
+          await onNetwork?.call(startup: false) ??
           (decision: ProfileDecision.none, network: null);
 
       if (!enabled()) {
         // Без слежения за сетью профиль только меняет стратегию работающего zapret.
-        if (profile.decision == ProfileDecision.changed && zapret.running && _canControl()) {
+        if (profile.decision == ProfileDecision.changed &&
+            zapret.running &&
+            _canControl()) {
           if (await zapret.stop()) await zapret.start();
         }
         return;
       }
 
       if (profile.decision == ProfileDecision.zapretOff) {
-        final off = AutoOff(AutoOffReason.profile,
-            at: DateTime.now(), from: baseline, to: now, network: profile.network);
+        final off = AutoOff(
+          AutoOffReason.profile,
+          at: DateTime.now(),
+          from: baseline,
+          to: now,
+          network: profile.network,
+        );
         if (zapret.running) {
           if (await zapret.stop()) {
             autoOff = off;
-            onEvent?.call('Zapret выключен: сеть «${profile.network}»',
-                'В этой сети zapret не нужен — так отмечено в её профиле.');
+            onEvent?.call(
+              'Zapret выключен: сеть «${profile.network}»',
+              'В этой сети zapret не нужен — так отмечено в её профиле.',
+            );
           }
         } else if (autoOff != null) {
           autoOff = off;
@@ -417,9 +461,11 @@ class NetworkGuard extends ChangeNotifier {
             to: now,
           );
           onEvent?.call(
-            moved ? 'Zapret выключен: сменилась страна' : 'Zapret выключен: обход не нужен',
+            moved
+                ? 'Zapret выключен: сменилась страна'
+                : 'Zapret выключен: обход не нужен',
             '${moved ? '${countryName(base)} → ${countryName(now)}. ' : ''}'
-                'Discord и YouTube открываются и так — включу снова, если блокировки вернутся.',
+            'Discord и YouTube открываются и так — включу снова, если блокировки вернутся.',
           );
           return;
         }
@@ -435,7 +481,10 @@ class NetworkGuard extends ChangeNotifier {
       if (open == false && await zapret.start()) {
         autoOff = null;
         baseline = now ?? baseline;
-        onEvent?.call('Zapret снова включён', 'Сеть сменилась: без обхода Discord и YouTube не открываются.');
+        onEvent?.call(
+          'Zapret снова включён',
+          'Сеть сменилась: без обхода Discord и YouTube не открываются.',
+        );
       }
     } finally {
       handling = false;

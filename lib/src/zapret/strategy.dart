@@ -44,8 +44,10 @@ List<Strategy> findStrategies(Directory root) {
 }
 
 /// Ключ сортировки: числа дополняются нулями до 8 знаков, как в service.bat.
-String naturalKey(String s) =>
-    s.toLowerCase().replaceAllMapped(RegExp(r'\d+'), (m) => m[0]!.padLeft(8, '0'));
+String naturalKey(String s) => s.toLowerCase().replaceAllMapped(
+  RegExp(r'\d+'),
+  (m) => m[0]!.padLeft(8, '0'),
+);
 
 /// Вытаскивает аргументы winws.exe из текста .bat.
 ///
@@ -115,7 +117,9 @@ List<String> resolveArgs(List<String> template, Map<String, String> vars) {
     for (final t in template)
       t.replaceAllMapped(re, (m) {
         final v = upper[m[1]!.toUpperCase()];
-        if (v == null) throw FormatException('Неизвестная переменная %${m[1]}% в стратегии');
+        if (v == null) {
+          throw FormatException('Неизвестная переменная %${m[1]}% в стратегии');
+        }
         return v;
       }),
   ];

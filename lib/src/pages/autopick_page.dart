@@ -19,11 +19,16 @@ class AutoPickPage extends StatelessWidget {
     final report = c.probeReport;
     final progress = c.probeProgress;
     final strategies = c.install?.strategies.length ?? 0;
-    final canStart = c.elevated && c.busy == null && !c.runningElsewhere && strategies > 0;
+    final canStart =
+        c.elevated && c.busy == null && !c.runningElsewhere && strategies > 0;
 
     Widget? fab;
     if (c.probing) {
-      fab = NcFab(icon: LucideIcons.square, label: 'Остановить', onPressed: c.cancelAutoPick);
+      fab = NcFab(
+        icon: LucideIcons.square,
+        label: 'Остановить',
+        onPressed: c.cancelAutoPick,
+      );
     } else if (report?.best != null) {
       final best = report!.best!.strategy!;
       final active = c.running && c.strategy?.id == best.id;
@@ -31,7 +36,9 @@ class AutoPickPage extends StatelessWidget {
         fab = NcFab(
           icon: LucideIcons.power,
           label: 'Включить «${best.title}»',
-          onPressed: c.busy == null && c.elevated ? () => c.applyStrategy(best) : null,
+          onPressed: c.busy == null && c.elevated
+              ? () => c.applyStrategy(best)
+              : null,
         );
       }
     } else if (report == null) {
@@ -44,55 +51,79 @@ class AutoPickPage extends StatelessWidget {
 
     var i = 0;
     return NcPage(
-      header: appHeader(context, c,
-          title: 'Подбор стратегии', onBack: () => Navigator.of(context).pop()),
+      header: appHeader(
+        context,
+        c,
+        title: 'Подбор стратегии',
+        onBack: () => Navigator.of(context).pop(),
+      ),
       footer: appFooter(c),
       fab: fab,
       children: [
-        ...importantRows(context, c),
+        ...importantRows(context, c, admin: true),
         Appear(
           index: i++,
           child: PageTitle(
             'Подбор стратегии',
-            description: 'Лаунчер по очереди включит каждую стратегию и проверит, открываются ли сайты.\n'
+            description:
+                'Лаунчер по очереди включит каждую стратегию и проверит, открываются ли сайты.\n'
                 'Займёт ${_minutes((strategies + 1) * _perStrategy.inSeconds)} — '
                 'интернет в это время может пропадать.',
           ),
         ),
         const SizedBox(height: 24),
         if (c.probing) ...[
-          Appear(index: i++, child: _ProgressCard(progress: progress)),
+          Appear(
+            index: i++,
+            child: _ProgressCard(progress: progress),
+          ),
           if (progress?.baseline != null) ...[
             const SizedBox(height: NcSpace.gapCards),
-            Appear(index: i++, child: _BaselineCard(result: progress!.baseline!)),
+            Appear(
+              index: i++,
+              child: _BaselineCard(result: progress!.baseline!),
+            ),
           ],
           if (progress != null && progress.results.isNotEmpty) ...[
             const SizedBox(height: 16),
             const SectionTitle('Проверено'),
             const SizedBox(height: 12),
-            NcSettingsCard(children: [
-              for (final r in progress.results.reversed) _ResultRow(result: r),
-            ]),
+            NcSettingsCard(
+              children: [
+                for (final r in progress.results.reversed)
+                  _ResultRow(result: r),
+              ],
+            ),
           ],
         ] else if (report != null)
           ..._reportView(context, c, report, () => i++)
         else
-          Appear(index: i++, child: _IntroCard(targets: c.probeTargets)),
+          Appear(
+            index: i++,
+            child: _IntroCard(targets: c.probeTargets),
+          ),
       ],
     );
   }
 
   List<Widget> _reportView(
-      BuildContext context, AppController c, AutoPickReport report, int Function() next) {
+    BuildContext context,
+    AppController c,
+    AutoPickReport report,
+    int Function() next,
+  ) {
     final best = report.best;
-    final spoofed = report.baseline.targets.where((t) => t.outcome == ProbeOutcome.spoofed);
+    final spoofed = report.baseline.targets.where(
+      (t) => t.outcome == ProbeOutcome.spoofed,
+    );
     final clean = report.baseline.okCount == report.baseline.total;
     return [
       if (clean) ...[
         const NoticeRow(
           kind: NoticeKind.info,
           title: 'Сайты открываются и без обхода',
-          detail: 'Блокировок не видно: возможно, включён VPN или провайдер сейчас их не блокирует. '
+          detail:
+              'Блокировок не видно: возможно, включён VPN или провайдер сейчас их не блокирует. '
               'Сравнить стратегии в таком случае не получится.',
         ),
         const SizedBox(height: 8),
@@ -109,7 +140,8 @@ class AutoPickPage extends StatelessWidget {
         NoticeRow(
           kind: NoticeKind.decision,
           title: 'Провайдер подменяет ответы сайтов',
-          detail: 'Чужой сертификат у ${spoofed.map((t) => t.target.url.host).join(', ')}. '
+          detail:
+              'Чужой сертификат у ${spoofed.map((t) => t.target.url.host).join(', ')}. '
               'Обход это не исправит — включите Secure DNS в Windows или браузере.',
         ),
         const SizedBox(height: 8),
@@ -118,15 +150,22 @@ class AutoPickPage extends StatelessWidget {
         const NoticeRow(
           kind: NoticeKind.decision,
           title: 'Ни одна стратегия не помогла',
-          detail: 'Попробуйте IPSet «Все адреса» или игровой фильтр на главной '
+          detail:
+              'Попробуйте IPSet «Все адреса» или игровой фильтр на главной '
               'и запустите подбор ещё раз.',
         ),
         const SizedBox(height: 8),
       ],
       if (best != null)
-        Appear(index: next(), child: _BestCard(result: best, controller: c)),
+        Appear(
+          index: next(),
+          child: _BestCard(result: best, controller: c),
+        ),
       const SizedBox(height: NcSpace.gapCards),
-      Appear(index: next(), child: _BaselineCard(result: report.baseline)),
+      Appear(
+        index: next(),
+        child: _BaselineCard(result: report.baseline),
+      ),
       if (report.results.isNotEmpty) ...[
         const SizedBox(height: 16),
         Appear(index: next(), child: const SectionTitle('Все стратегии')),
@@ -141,17 +180,22 @@ class AutoPickPage extends StatelessWidget {
         const SizedBox(height: 12),
         Appear(
           index: next(),
-          child: NcSettingsCard(children: [
-            for (final r in report.ranked)
-              _ResultRow(
-                result: r,
-                best: identical(r, best),
-                active: c.running && c.busy == null && c.strategy?.id == r.strategy?.id,
-                onTap: r.failedToStart || c.busy != null || !c.elevated
-                    ? null
-                    : () => c.applyStrategy(r.strategy!),
-              ),
-          ]),
+          child: NcSettingsCard(
+            children: [
+              for (final r in report.ranked)
+                _ResultRow(
+                  result: r,
+                  best: identical(r, best),
+                  active:
+                      c.running &&
+                      c.busy == null &&
+                      c.strategy?.id == r.strategy?.id,
+                  onTap: r.failedToStart || c.busy != null || !c.elevated
+                      ? null
+                      : () => c.applyStrategy(r.strategy!),
+                ),
+            ],
+          ),
         ),
       ],
       const SizedBox(height: 16),
@@ -160,7 +204,9 @@ class AutoPickPage extends StatelessWidget {
         child: NcButton.gray(
           label: 'Проверить ещё раз',
           icon: LucideIcons.rotateCw,
-          onPressed: c.elevated && c.busy == null && !c.runningElsewhere ? c.autoPick : null,
+          onPressed: c.elevated && c.busy == null && !c.runningElsewhere
+              ? c.autoPick
+              : null,
         ),
       ),
     ];
@@ -220,12 +266,14 @@ class _ProgressCard extends StatelessWidget {
     final p = context.palette;
     final pr = progress;
     final total = pr?.total ?? 1;
-    final done = pr?.baseline == null ? 0 : (pr!.current == null ? total : pr.index);
+    final done = pr?.baseline == null
+        ? 0
+        : (pr!.current == null ? total : pr.index);
     final title = pr?.current != null
         ? 'Проверяю «${pr!.current!.title}»'
         : pr?.baseline == null
-            ? 'Проверяю сайты без обхода'
-            : 'Подвожу итоги';
+        ? 'Проверяю сайты без обхода'
+        : 'Подвожу итоги';
     final left = (total - done) * _perStrategy.inSeconds;
     return NcCard(
       child: Column(
@@ -234,17 +282,26 @@ class _ProgressCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(title,
-                    style: NcType.rowTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  title,
+                  style: NcType.rowTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               Text(
                 '$done из $total',
-                style: NcType.caption.copyWith(color: p.muted, fontFeatures: NcType.tabular),
+                style: NcType.caption.copyWith(
+                  color: p.muted,
+                  fontFeatures: NcType.tabular,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          NcProgressBar(value: (done + (pr?.baseline == null ? 0 : .5)) / (total + 1)),
+          NcProgressBar(
+            value: (done + (pr?.baseline == null ? 0 : .5)) / (total + 1),
+          ),
           const SizedBox(height: 8),
           Text(
             left <= 0 ? 'Почти готово' : 'Осталось ${_minutes(left)}',
@@ -265,7 +322,8 @@ class _BestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final active = controller.running && controller.strategy?.id == result.strategy?.id;
+    final active =
+        controller.running && controller.strategy?.id == result.strategy?.id;
     return NcCard(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -274,14 +332,21 @@ class _BestCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(shape: BoxShape.circle, color: p.success),
-            child: const Icon(LucideIcons.trophy, size: 20, color: Colors.white),
+            child: const Icon(
+              LucideIcons.trophy,
+              size: 20,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Лучшая — «${result.strategy!.title}»', style: NcType.rowTitle),
+                Text(
+                  'Лучшая — «${result.strategy!.title}»',
+                  style: NcType.rowTitle,
+                ),
                 const SizedBox(height: 2),
                 Text(
                   '${_openLine(result)} · отклик ${result.averageLatency.inMilliseconds} мс',
@@ -316,7 +381,10 @@ class _BaselineCard extends StatelessWidget {
         children: [
           const Text('Без обхода', style: NcType.rowTitle),
           const SizedBox(height: 2),
-          Text(_openLine(result), style: NcType.caption.copyWith(color: p.muted)),
+          Text(
+            _openLine(result),
+            style: NcType.caption.copyWith(color: p.muted),
+          ),
           const SizedBox(height: 8),
           _GroupDots(result: result),
         ],
@@ -325,10 +393,16 @@ class _BaselineCard extends StatelessWidget {
   }
 }
 
-String _openLine(StrategyResult r) => 'Открываются ${r.okCount} из ${r.total} сайтов';
+String _openLine(StrategyResult r) =>
+    'Открываются ${r.okCount} из ${r.total} сайтов';
 
 class _ResultRow extends StatelessWidget {
-  const _ResultRow({required this.result, this.best = false, this.active = false, this.onTap});
+  const _ResultRow({
+    required this.result,
+    this.best = false,
+    this.active = false,
+    this.onTap,
+  });
 
   final StrategyResult result;
   final bool best;
@@ -373,7 +447,8 @@ class _GroupDots extends StatelessWidget {
       spacing: 14,
       runSpacing: 4,
       children: [
-        for (final MapEntry(key: group, value: (ok, total)) in result.byGroup.entries)
+        for (final MapEntry(key: group, value: (ok, total))
+            in result.byGroup.entries)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -382,7 +457,9 @@ class _GroupDots extends StatelessWidget {
                 height: 7,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: ok == total ? p.success : (ok == 0 ? p.danger : p.warning),
+                  color: ok == total
+                      ? p.success
+                      : (ok == 0 ? p.danger : p.warning),
                 ),
               ),
               const SizedBox(width: 5),

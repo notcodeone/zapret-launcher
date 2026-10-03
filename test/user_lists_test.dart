@@ -25,7 +25,10 @@ void main() {
 
   group('normalizeDomain', () {
     test('ссылки, маски и регистр', () {
-      expect(normalizeDomain('https://Discord.com/channels/123?x=1'), 'discord.com');
+      expect(
+        normalizeDomain('https://Discord.com/channels/123?x=1'),
+        'discord.com',
+      );
       expect(normalizeDomain('*.example.com'), 'example.com');
       expect(normalizeDomain('.example.com.'), 'example.com');
       expect(normalizeDomain('user@host.example.org:8443'), 'host.example.org');
@@ -75,20 +78,25 @@ domain.example.abc
     tearDown(() => tmp.deleteSync(recursive: true));
 
     test('заглушка скрыта при чтении и пишется в пустой список', () {
-      File(p.join(tmp.path, 'list-general-user.txt'))
-          .writeAsStringSync('# Never leave this file empty\r\ndomain.example.abc\r\n');
+      File(p.join(tmp.path, 'list-general-user.txt')).writeAsStringSync(
+        '# Never leave this file empty\r\ndomain.example.abc\r\n',
+      );
       final l = readUserList(tmp.path, UserListKind.bypass);
       expect(l.entries, isEmpty);
       expect(l.header, ['# Never leave this file empty']);
 
       writeUserList(tmp.path, l.withEntries(['discord.com', 'youtube.com']));
-      expect(File(p.join(tmp.path, 'list-general-user.txt')).readAsStringSync(),
-          '# Never leave this file empty\r\ndiscord.com\r\nyoutube.com\r\n');
+      expect(
+        File(p.join(tmp.path, 'list-general-user.txt')).readAsStringSync(),
+        '# Never leave this file empty\r\ndiscord.com\r\nyoutube.com\r\n',
+      );
 
       writeUserList(tmp.path, l.withEntries(const []));
       expect(readUserList(tmp.path, UserListKind.bypass).entries, isEmpty);
-      expect(File(p.join(tmp.path, 'list-general-user.txt')).readAsStringSync(),
-          contains('domain.example.abc'));
+      expect(
+        File(p.join(tmp.path, 'list-general-user.txt')).readAsStringSync(),
+        contains('domain.example.abc'),
+      );
     });
 
     test('файл в UTF-16 с BOM, как из Блокнота', () {
@@ -99,20 +107,28 @@ domain.example.abc
           ..add(unit & 0xFF)
           ..add(unit >> 8);
       }
-      expect(parseEntries(decodeText(bytes), ip: false).entries,
-          ['example.com', 'xn--d1abbgf6aiiy.xn--p1ai']);
+      expect(parseEntries(decodeText(bytes), ip: false).entries, [
+        'example.com',
+        'xn--d1abbgf6aiiy.xn--p1ai',
+      ]);
       expect(decodeText([0xEF, 0xBB, 0xBF, ...utf8.encode('a.b')]), 'a.b');
     });
 
     test('экспорт', () {
-      final text = exportText(const UserList(UserListKind.exclude, ['a.com', 'b.com']),
-          now: DateTime(2026, 10, 2));
-      expect(text, '# Сайты-исключения — ZapretLauncher, 2026-10-02\r\na.com\r\nb.com\r\n');
+      final text = exportText(
+        const UserList(UserListKind.exclude, ['a.com', 'b.com']),
+        now: DateTime(2026, 10, 2),
+      );
+      expect(
+        text,
+        '# Сайты-исключения — ZapretLauncher, 2026-10-02\r\na.com\r\nb.com\r\n',
+      );
       expect(parseEntries(text, ip: false).entries, ['a.com', 'b.com']);
     });
 
     test('стандартный список считается без комментариев', () {
-      File(p.join(tmp.path, 'list-general.txt')).writeAsStringSync('# x\na.com\n\nb.com\n');
+      File(p.join(tmp.path, 'list-general.txt'))
+          .writeAsStringSync('# x\na.com\n\nb.com\n');
       expect(countStandardList(tmp.path), 2);
     });
   });

@@ -25,6 +25,7 @@ class AppSettings {
     this.closeToTray = true,
     this.watchdog = true,
     this.trayHintShown = false,
+    this.runModeAsked = false,
     this.networkGuard = true,
     this.countryCheck = true,
     this.profilesEnabled = true,
@@ -53,6 +54,10 @@ class AppSettings {
   /// Подсказку «лаунчер в трее» уже показывали.
   final bool trayHintShown;
 
+  /// Уже спросили, как запускать zapret — как general.bat или службой Windows.
+  /// Сам способ — в системе: стоит служба zapret или нет.
+  final bool runModeAsked;
+
   /// При смене сети выключать zapret, если обход не нужен, и включать снова.
   final bool networkGuard;
 
@@ -80,6 +85,7 @@ class AppSettings {
     bool? closeToTray,
     bool? watchdog,
     bool? trayHintShown,
+    bool? runModeAsked,
     bool? networkGuard,
     bool? countryCheck,
     bool? profilesEnabled,
@@ -87,62 +93,68 @@ class AppSettings {
     bool? autoCheckUpdates,
     bool? autoUpdateZapret,
     String? skippedZapretVersion,
-  }) =>
-      AppSettings(
-        zapretSource: zapretSource ?? this.zapretSource,
-        zapretDir: zapretDir ?? this.zapretDir,
-        strategy: strategy ?? this.strategy,
-        themeMode: themeMode ?? this.themeMode,
-        closeToTray: closeToTray ?? this.closeToTray,
-        watchdog: watchdog ?? this.watchdog,
-        trayHintShown: trayHintShown ?? this.trayHintShown,
-        networkGuard: networkGuard ?? this.networkGuard,
-        countryCheck: countryCheck ?? this.countryCheck,
-        profilesEnabled: profilesEnabled ?? this.profilesEnabled,
-        profiles: profiles ?? this.profiles,
-        autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
-        autoUpdateZapret: autoUpdateZapret ?? this.autoUpdateZapret,
-        skippedZapretVersion: skippedZapretVersion ?? this.skippedZapretVersion,
-      );
+  }) => AppSettings(
+    zapretSource: zapretSource ?? this.zapretSource,
+    zapretDir: zapretDir ?? this.zapretDir,
+    strategy: strategy ?? this.strategy,
+    themeMode: themeMode ?? this.themeMode,
+    closeToTray: closeToTray ?? this.closeToTray,
+    watchdog: watchdog ?? this.watchdog,
+    trayHintShown: trayHintShown ?? this.trayHintShown,
+    runModeAsked: runModeAsked ?? this.runModeAsked,
+    networkGuard: networkGuard ?? this.networkGuard,
+    countryCheck: countryCheck ?? this.countryCheck,
+    profilesEnabled: profilesEnabled ?? this.profilesEnabled,
+    profiles: profiles ?? this.profiles,
+    autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
+    autoUpdateZapret: autoUpdateZapret ?? this.autoUpdateZapret,
+    skippedZapretVersion: skippedZapretVersion ?? this.skippedZapretVersion,
+  );
 
   Map<String, Object?> toJson() => {
-        'zapretSource': zapretSource?.name,
-        'zapretDir': zapretDir,
-        'strategy': strategy,
-        'themeMode': themeMode.name,
-        'closeToTray': closeToTray,
-        'watchdog': watchdog,
-        'trayHintShown': trayHintShown,
-        'networkGuard': networkGuard,
-        'countryCheck': countryCheck,
-        'profilesEnabled': profilesEnabled,
-        'profiles': [for (final p in profiles) p.toJson()],
-        'autoCheckUpdates': autoCheckUpdates,
-        'autoUpdateZapret': autoUpdateZapret,
-        'skippedZapretVersion': skippedZapretVersion,
-      };
+    'zapretSource': zapretSource?.name,
+    'zapretDir': zapretDir,
+    'strategy': strategy,
+    'themeMode': themeMode.name,
+    'closeToTray': closeToTray,
+    'watchdog': watchdog,
+    'trayHintShown': trayHintShown,
+    'runModeAsked': runModeAsked,
+    'networkGuard': networkGuard,
+    'countryCheck': countryCheck,
+    'profilesEnabled': profilesEnabled,
+    'profiles': [for (final p in profiles) p.toJson()],
+    'autoCheckUpdates': autoCheckUpdates,
+    'autoUpdateZapret': autoUpdateZapret,
+    'skippedZapretVersion': skippedZapretVersion,
+  };
 
   factory AppSettings.fromJson(Map<String, Object?> json) => AppSettings(
-        zapretSource: ZapretSource.values.where((s) => s.name == json['zapretSource']).firstOrNull,
-        zapretDir: json['zapretDir'] as String?,
-        strategy: json['strategy'] as String?,
-        themeMode: ThemeMode.values.firstWhere(
-          (m) => m.name == json['themeMode'],
-          orElse: () => ThemeMode.system,
-        ),
-        closeToTray: json['closeToTray'] as bool? ?? true,
-        watchdog: json['watchdog'] as bool? ?? true,
-        trayHintShown: json['trayHintShown'] as bool? ?? false,
-        networkGuard: json['networkGuard'] as bool? ?? true,
-        countryCheck: json['countryCheck'] as bool? ?? true,
-        profilesEnabled: json['profilesEnabled'] as bool? ?? true,
-        profiles: [
-          for (final p in (json['profiles'] as List? ?? const [])) ?NetworkProfile.fromJson(p),
-        ],
-        autoCheckUpdates: json['autoCheckUpdates'] as bool? ?? true,
-        autoUpdateZapret: json['autoUpdateZapret'] as bool? ?? true,
-        skippedZapretVersion: json['skippedZapretVersion'] as String?,
-      );
+    zapretSource: ZapretSource.values
+        .where((s) => s.name == json['zapretSource'])
+        .firstOrNull,
+    zapretDir: json['zapretDir'] as String?,
+    strategy: json['strategy'] as String?,
+    themeMode: ThemeMode.values.firstWhere(
+      (m) => m.name == json['themeMode'],
+      orElse: () => ThemeMode.system,
+    ),
+    closeToTray: json['closeToTray'] as bool? ?? true,
+    watchdog: json['watchdog'] as bool? ?? true,
+    trayHintShown: json['trayHintShown'] as bool? ?? false,
+    // Нет в файле — настройки от прежней версии: zapret уже запускали, не спрашиваем.
+    runModeAsked: json['runModeAsked'] as bool? ?? true,
+    networkGuard: json['networkGuard'] as bool? ?? true,
+    countryCheck: json['countryCheck'] as bool? ?? true,
+    profilesEnabled: json['profilesEnabled'] as bool? ?? true,
+    profiles: [
+      for (final p in (json['profiles'] as List? ?? const []))
+        ?NetworkProfile.fromJson(p),
+    ],
+    autoCheckUpdates: json['autoCheckUpdates'] as bool? ?? true,
+    autoUpdateZapret: json['autoUpdateZapret'] as bool? ?? true,
+    skippedZapretVersion: json['skippedZapretVersion'] as String?,
+  );
 }
 
 class SettingsStore {
@@ -151,21 +163,25 @@ class SettingsStore {
   final File _file;
 
   static String _defaultPath() {
-    final appData = Platform.environment['APPDATA'] ?? Directory.systemTemp.path;
+    final appData =
+        Platform.environment['APPDATA'] ?? Directory.systemTemp.path;
     return p.join(appData, 'ZapretLauncher', 'settings.json');
   }
 
   /// Папка встроенного zapret. ProgramData — путь без кириллицы и пробелов
   /// (с ними winws.exe работает ненадёжно) и доступен службе Windows.
   static String defaultZapretDir() {
-    final programData = Platform.environment['ProgramData'] ?? r'C:\ProgramData';
+    final programData =
+        Platform.environment['ProgramData'] ?? r'C:\ProgramData';
     return p.join(programData, 'ZapretLauncher', 'zapret');
   }
 
   AppSettings load() {
     try {
       if (!_file.existsSync()) return const AppSettings();
-      return AppSettings.fromJson(jsonDecode(_file.readAsStringSync()) as Map<String, Object?>);
+      return AppSettings.fromJson(
+        jsonDecode(_file.readAsStringSync()) as Map<String, Object?>,
+      );
     } on Object {
       // Повреждённый файл — начинаем с настроек по умолчанию.
       return const AppSettings();
@@ -175,7 +191,9 @@ class SettingsStore {
   void save(AppSettings settings) {
     _file.parent.createSync(recursive: true);
     final tmp = File('${_file.path}.tmp');
-    tmp.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(settings.toJson()));
+    tmp.writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert(settings.toJson()),
+    );
     tmp.renameSync(_file.path);
   }
 }

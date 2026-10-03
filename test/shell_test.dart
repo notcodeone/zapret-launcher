@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:zapret_launcher/src/controller.dart';
 
 import 'helpers.dart';
+
 import 'package:zapret_launcher/src/platform/window.dart';
 import 'package:zapret_launcher/src/settings.dart';
 import 'package:zapret_launcher/src/shell.dart';
@@ -25,16 +26,22 @@ class _FlakyRunner extends ZapretRunner {
 
   @override
   RuntimeStatus status() => RuntimeStatus(
-        processes: alive ? [WinwsProcess(1, p.join(root, 'bin', 'winws.exe'))] : const [],
-        service: null,
-        serviceStrategy: null,
-      );
+    processes: alive
+        ? [WinwsProcess(1, p.join(root, 'bin', 'winws.exe'))]
+        : const [],
+    service: null,
+    serviceStrategy: null,
+  );
 
   @override
   void prepare(ZapretInstall install) {}
 
   @override
-  Future<void> startProcess(ZapretInstall install, Strategy strategy, GameFilter filter) async {
+  Future<void> startProcess(
+    ZapretInstall install,
+    Strategy strategy,
+    GameFilter filter,
+  ) async {
     starts++;
     alive = true;
   }
@@ -73,13 +80,18 @@ class _FakeWindow extends WindowChannel {
   Future<bool> isVisible() async => visible;
 
   @override
-  Future<void> setInterceptClose(bool value) async => calls.add('intercept:$value');
+  Future<void> setInterceptClose(bool value) async =>
+      calls.add('intercept:$value');
 
   @override
   Future<int> trayIconSize() async => 16;
 
   @override
-  Future<void> setTray({required Uint8List rgba, required int size, required String tooltip}) async {
+  Future<void> setTray({
+    required Uint8List rgba,
+    required int size,
+    required String tooltip,
+  }) async {
     iconBytes = rgba.length;
     this.tooltip = tooltip;
   }
@@ -91,7 +103,8 @@ class _FakeWindow extends WindowChannel {
   Future<void> removeTray() async => calls.add('removeTray');
 
   @override
-  Future<void> balloon(String title, String text) async => calls.add('balloon:$title');
+  Future<void> balloon(String title, String text) async =>
+      calls.add('balloon:$title');
 }
 
 void main() {
@@ -102,7 +115,8 @@ void main() {
     tmp = Directory.systemTemp.createTempSync('zl-shell-');
     root = p.join(tmp.path, 'zapret');
     File(p.join(root, 'bin', 'winws.exe')).createSync(recursive: true);
-    File(p.join(root, 'general.bat')).writeAsStringSync('"%BIN%winws.exe" --wf-tcp=80');
+    File(p.join(root, 'general.bat'))
+        .writeAsStringSync('"%BIN%winws.exe" --wf-tcp=80');
   });
   tearDown(() => tmp.deleteSync(recursive: true));
 
@@ -125,7 +139,9 @@ void main() {
     c.toasts.dispose();
   }
 
-  testWidgets('сторож перезапускает winws.exe, но не больше 3 раз за 5 минут', (tester) async {
+  testWidgets('сторож перезапускает winws.exe, но не больше 3 раз за 5 минут', (
+    tester,
+  ) async {
     final runner = _FlakyRunner(root);
     final c = make(runner);
     expect(c.running, isTrue);
@@ -182,11 +198,15 @@ void main() {
 
     // Крестик прячет окно; подсказка — только в первый раз.
     w.onCloseRequested!();
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
     expect(w.visible, isFalse);
     expect(w.calls.where((e) => e.startsWith('balloon')).length, 1);
     w.onCloseRequested!();
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
     expect(w.calls.where((e) => e.startsWith('balloon')).length, 1);
 
     // «Открыть» из меню значка.
@@ -197,13 +217,17 @@ void main() {
     dispose(c);
   });
 
-  testWidgets('без сворачивания в трей крестик закрывает лаунчер', (tester) async {
+  testWidgets('без сворачивания в трей крестик закрывает лаунчер', (
+    tester,
+  ) async {
     final c = make(_FlakyRunner(root), closeToTray: false);
     final w = _FakeWindow();
     final shell = DesktopShell(c, window: w);
     await tester.runAsync(shell.init);
     w.onCloseRequested!();
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
     expect(w.calls, containsAllInOrder(['removeTray', 'quit']));
     shell.dispose();
     dispose(c);

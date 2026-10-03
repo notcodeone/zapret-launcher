@@ -18,8 +18,16 @@ class CountrySource {
 
   static const all = [
     CountrySource('country.is', 'https://api.country.is/', _countryField),
-    CountrySource('Cloudflare', 'https://www.cloudflare.com/cdn-cgi/trace', _traceLoc),
-    CountrySource('ipwho.is', 'https://ipwho.is/?fields=success,country_code', _countryCodeField),
+    CountrySource(
+      'Cloudflare',
+      'https://www.cloudflare.com/cdn-cgi/trace',
+      _traceLoc,
+    ),
+    CountrySource(
+      'ipwho.is',
+      'https://ipwho.is/?fields=success,country_code',
+      _countryCodeField,
+    ),
     CountrySource('ipapi.co', 'https://ipapi.co/country/', _plain),
   ];
 
@@ -27,7 +35,8 @@ class CountrySource {
   static String? _countryField(String body) => _jsonField(body, 'country');
 
   /// `{"success": true, "country_code": "DE"}`
-  static String? _countryCodeField(String body) => _jsonField(body, 'country_code');
+  static String? _countryCodeField(String body) =>
+      _jsonField(body, 'country_code');
 
   /// Строки `ключ=значение`, страна — `loc=DE`.
   static String? _traceLoc(String body) =>
@@ -85,16 +94,22 @@ Future<CountryResult> lookupCountry({
         settled = Completer<void>();
       }
       if (result.isCompleted) break;
-      asked.add(_ask(client, source, timeout).then(
-        (country) {
-          if (!result.isCompleted) result.complete((country: country, source: source.name));
-        },
-        onError: (Object error) {
-          errors[index] = '${source.name}: $error';
-        },
-      ).whenComplete(() {
-        if (!settled.isCompleted) settled.complete();
-      }));
+      asked.add(
+        _ask(client, source, timeout)
+            .then(
+              (country) {
+                if (!result.isCompleted) {
+                  result.complete((country: country, source: source.name));
+                }
+              },
+              onError: (Object error) {
+                errors[index] = '${source.name}: $error';
+              },
+            )
+            .whenComplete(() {
+              if (!settled.isCompleted) settled.complete();
+            }),
+      );
     }
     await Future.any([result.future, Future.wait(asked)]);
     if (result.isCompleted) return await result.future;
@@ -105,14 +120,22 @@ Future<CountryResult> lookupCountry({
   }
 }
 
-Future<String> _ask(HttpClient client, CountrySource source, Duration timeout) async {
+Future<String> _ask(
+  HttpClient client,
+  CountrySource source,
+  Duration timeout,
+) async {
   final request = await client.getUrl(Uri.parse(source.url)).timeout(timeout);
   final response = await request.close().timeout(timeout);
   final body = await utf8.decodeStream(response).timeout(timeout);
-  if (response.statusCode != HttpStatus.ok) throw _Failure('HTTP ${response.statusCode}');
+  if (response.statusCode != HttpStatus.ok) {
+    throw _Failure('HTTP ${response.statusCode}');
+  }
   // Сервисы отвечают и не странами: XX — неизвестно, T1 — Tor.
   final code = source.parse(body)?.toUpperCase();
-  if (code == null || !countryNames.containsKey(code)) throw const _Failure('страна не указана');
+  if (code == null || !countryNames.containsKey(code)) {
+    throw const _Failure('страна не указана');
+  }
   return code;
 }
 

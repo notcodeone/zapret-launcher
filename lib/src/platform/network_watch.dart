@@ -19,16 +19,16 @@ Future<String> networkFingerprint() async {
   return ([
     for (final interface in interfaces)
       if (!isVirtualMachineAdapter(interface.name))
-        for (final address in interface.addresses) '${interface.name}=${address.address}',
-  ]..sort())
-      .join(',');
+        for (final address in interface.addresses)
+          '${interface.name}=${address.address}',
+  ]..sort()).join(',');
 }
 
 /// Адаптер для виртуальных машин, а не выход в сеть.
 bool isVirtualMachineAdapter(String name) => RegExp(
-      r'^(bridge\d+|vmenet\d+|vEthernet \((Default Switch|WSL.*|.*cowork.*)\))$',
-      caseSensitive: false,
-    ).hasMatch(name);
+  r'^(bridge\d+|vmenet\d+|vEthernet \((Default Switch|WSL.*|.*cowork.*)\))$',
+  caseSensitive: false,
+).hasMatch(name);
 
 /// Мгновенное событие Windows о смене сети: на любом адаптере (Wi-Fi, кабель, VPN)
 /// появился или пропал IP-адрес (`NotifyUnicastIpAddressChange`) — не ждём опроса.
@@ -79,16 +79,34 @@ class WindowsNetworkWatch {
   }
 }
 
-typedef _ChangeCallback = Void Function(Pointer<Void> context, Pointer<Void> row, Int32 type);
+typedef _ChangeCallback = Void Function(
+  Pointer<Void> context,
+  Pointer<Void> row,
+  Int32 type,
+);
 
 final _iphlpapi = DynamicLibrary.open('iphlpapi.dll');
 
-final _notifyUnicastIpAddressChange = _iphlpapi.lookupFunction<
-    Uint32 Function(Uint16 family, Pointer<NativeFunction<_ChangeCallback>> callback,
-        Pointer<Void> context, Uint8 initialNotification, Pointer<Pointer<Void>> handle),
-    int Function(int family, Pointer<NativeFunction<_ChangeCallback>> callback,
-        Pointer<Void> context, int initialNotification,
-        Pointer<Pointer<Void>> handle)>('NotifyUnicastIpAddressChange');
+final _notifyUnicastIpAddressChange = _iphlpapi
+    .lookupFunction<
+      Uint32 Function(
+        Uint16 family,
+        Pointer<NativeFunction<_ChangeCallback>> callback,
+        Pointer<Void> context,
+        Uint8 initialNotification,
+        Pointer<Pointer<Void>> handle,
+      ),
+      int Function(
+        int family,
+        Pointer<NativeFunction<_ChangeCallback>> callback,
+        Pointer<Void> context,
+        int initialNotification,
+        Pointer<Pointer<Void>> handle,
+      )
+    >('NotifyUnicastIpAddressChange');
 
-final _cancelMibChangeNotify2 = _iphlpapi.lookupFunction<Uint32 Function(Pointer<Void> handle),
-    int Function(Pointer<Void> handle)>('CancelMibChangeNotify2');
+final _cancelMibChangeNotify2 = _iphlpapi
+    .lookupFunction<
+      Uint32 Function(Pointer<Void> handle),
+      int Function(Pointer<Void> handle)
+    >('CancelMibChangeNotify2');

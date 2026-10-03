@@ -24,16 +24,22 @@ class _FakeRunner extends ZapretRunner {
 
   @override
   RuntimeStatus status() => RuntimeStatus(
-        processes: alive ? [WinwsProcess(1, p.join(root, 'bin', 'winws.exe'))] : const [],
-        service: null,
-        serviceStrategy: null,
-      );
+    processes: alive
+        ? [WinwsProcess(1, p.join(root, 'bin', 'winws.exe'))]
+        : const [],
+    service: null,
+    serviceStrategy: null,
+  );
 
   @override
   void prepare(ZapretInstall install) {}
 
   @override
-  Future<void> startProcess(ZapretInstall install, Strategy strategy, GameFilter filter) async {
+  Future<void> startProcess(
+    ZapretInstall install,
+    Strategy strategy,
+    GameFilter filter,
+  ) async {
     started = strategy.id;
     alive = true;
   }
@@ -79,18 +85,22 @@ void main() {
     final tmp = Directory.systemTemp.createTempSync('zl-prof-');
     addTearDown(() => tmp.deleteSync(recursive: true));
     final store = SettingsStore(path: p.join(tmp.path, 's.json'));
-    store.save(AppSettings(profiles: [
-      NetworkProfile(
-        asn: 'AS12389',
-        name: 'Дом',
-        isp: 'Rostelecom',
-        strategy: 'general (ALT5)',
-        gameFilter: GameFilterMode.tcp,
-        ipset: IpsetMode.loaded,
-        zapretOff: true,
-        lastSeen: DateTime(2026, 10, 2),
+    store.save(
+      AppSettings(
+        profiles: [
+          NetworkProfile(
+            asn: 'AS12389',
+            name: 'Дом',
+            isp: 'Rostelecom',
+            strategy: 'general (ALT5)',
+            gameFilter: GameFilterMode.tcp,
+            ipset: IpsetMode.loaded,
+            zapretOff: true,
+            lastSeen: DateTime(2026, 10, 2),
+          ),
+        ],
       ),
-    ]));
+    );
     final loaded = store.load().profiles.single;
     expect(loaded.name, 'Дом');
     expect(loaded.strategy, 'general (ALT5)');
@@ -99,103 +109,121 @@ void main() {
     expect(loaded.zapretOff, isTrue);
   });
 
-  testWidgets('стратегия запоминается для сети и возвращается при возвращении', (tester) async {
-    final tmp = Directory.systemTemp.createTempSync('zl-prof-');
-    addTearDown(() => tmp.deleteSync(recursive: true));
-    final root = p.join(tmp.path, 'zapret');
-    File(p.join(root, 'bin', 'winws.exe')).createSync(recursive: true);
-    for (final id in ['general', 'general (ALT2)', 'general (ALT3)']) {
-      File(p.join(root, '$id.bat')).writeAsStringSync('"%BIN%winws.exe" --wf-tcp=80');
-    }
-    final store = SettingsStore(path: p.join(tmp.path, 's.json'))
-      ..save(AppSettings(zapretDir: root, strategy: 'general', networkGuard: true));
-
-    var asn = 'AS12389';
-    final runner = _FakeRunner(root);
-    late _Bridge bridge;
-    final c = AppController(
-      toasts: ToastController(),
-      store: store,
-      runner: runner,
-      isElevated: () => true,
-      watchNetworkEvents: false,
-      launcherAutostart: FakeAutostart(),
-      guardFactory: (zapret, onNetwork) {
-        bridge = _Bridge(zapret);
-        return NetworkGuard(
-          zapret: bridge,
-          enabled: () => true,
-          countryEnabled: () => true,
-          lookup: () async => (country: 'RU', source: 'test'),
-          providerEnabled: () => true,
-          providerLookup: () async =>
-              (asn: asn, isp: asn == 'AS12389' ? 'PJSC Rostelecom' : 'MTS PJSC', country: 'RU', source: 'test'),
-          fingerprint: () async => 'net',
-          onNetwork: onNetwork,
-          settle: Duration.zero,
+  testWidgets(
+    'стратегия запоминается для сети и возвращается при возвращении',
+    (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('zl-prof-');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      final root = p.join(tmp.path, 'zapret');
+      File(p.join(root, 'bin', 'winws.exe')).createSync(recursive: true);
+      for (final id in ['general', 'general (ALT2)', 'general (ALT3)']) {
+        File(p.join(root, '$id.bat'))
+            .writeAsStringSync('"%BIN%winws.exe" --wf-tcp=80');
+      }
+      final store = SettingsStore(path: p.join(tmp.path, 's.json'))
+        ..save(
+          AppSettings(zapretDir: root, strategy: 'general', networkGuard: true),
         );
-      },
-    );
-    await tester.runAsync(() async {
-      c.init();
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    });
 
-    // Первая сеть, где zapret уже работает, — запомнилась сама.
-    expect(c.profiles.single.asn, 'AS12389');
-    expect(c.profiles.single.name, 'Rostelecom');
-    expect(c.isNewNetwork, isFalse);
+      var asn = 'AS12389';
+      final runner = _FakeRunner(root);
+      late _Bridge bridge;
+      final c = AppController(
+        toasts: ToastController(),
+        store: store,
+        runner: runner,
+        isElevated: () => true,
+        watchNetworkEvents: false,
+        launcherAutostart: FakeAutostart(),
+        guardFactory: (zapret, onNetwork) {
+          bridge = _Bridge(zapret);
+          return NetworkGuard(
+            zapret: bridge,
+            enabled: () => true,
+            countryEnabled: () => true,
+            lookup: () async => (country: 'RU', source: 'test'),
+            providerEnabled: () => true,
+            providerLookup: () async => (
+              asn: asn,
+              isp: asn == 'AS12389' ? 'PJSC Rostelecom' : 'MTS PJSC',
+              country: 'RU',
+              source: 'test',
+            ),
+            fingerprint: () async => 'net',
+            onNetwork: onNetwork,
+            settle: Duration.zero,
+          );
+        },
+      );
+      await tester.runAsync(() async {
+        c.init();
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
 
-    // Выбрали стратегию — профиль её помнит.
-    await tester.runAsync(() => c.selectStrategy(c.install!.strategyById('general (ALT2)')!));
-    expect(c.profileFor('AS12389')!.strategy, 'general (ALT2)');
+      // Первая сеть, где zapret уже работает, — запомнилась сама.
+      expect(c.profiles.single.asn, 'AS12389');
+      expect(c.profiles.single.name, 'Rostelecom');
+      expect(c.isNewNetwork, isFalse);
 
-    // Новая сеть: блокировки есть — zapret снова включён, но своей стратегии нет.
-    asn = 'AS8359';
-    await tester.runAsync(c.guard.networkChanged);
-    expect(c.running, isTrue);
-    expect(c.isNewNetwork, isTrue);
-    expect(c.currentNetworkName, 'MTS');
-    await tester.runAsync(() => c.selectStrategy(c.install!.strategyById('general (ALT3)')!));
-    expect(c.profileFor('AS8359')!.strategy, 'general (ALT3)');
-    expect(c.isNewNetwork, isFalse);
+      // Выбрали стратегию — профиль её помнит.
+      await tester.runAsync(
+        () => c.selectStrategy(c.install!.strategyById('general (ALT2)')!),
+      );
+      expect(c.profileFor('AS12389')!.strategy, 'general (ALT2)');
 
-    // Вернулись домой — стратегия переключилась сама.
-    asn = 'AS12389';
-    await tester.runAsync(c.guard.networkChanged);
-    expect(c.strategy!.id, 'general (ALT2)');
-    expect(runner.started, 'general (ALT2)');
-    expect(c.running, isTrue);
+      // Новая сеть: блокировки есть — zapret снова включён, но своей стратегии нет.
+      asn = 'AS8359';
+      await tester.runAsync(c.guard.networkChanged);
+      expect(c.running, isTrue);
+      expect(c.isNewNetwork, isTrue);
+      expect(c.currentNetworkName, 'MTS');
+      await tester.runAsync(
+        () => c.selectStrategy(c.install!.strategyById('general (ALT3)')!),
+      );
+      expect(c.profileFor('AS8359')!.strategy, 'general (ALT3)');
+      expect(c.isNewNetwork, isFalse);
 
-    // В сети МТС zapret не нужен.
-    c.setProfileZapretOff('AS8359', true);
-    asn = 'AS8359';
-    await tester.runAsync(c.guard.networkChanged);
-    expect(c.running, isFalse);
-    expect(c.guard.autoOff?.reason, AutoOffReason.profile);
-    expect(c.guard.autoOff?.network, 'MTS');
+      // Вернулись домой — стратегия переключилась сама.
+      asn = 'AS12389';
+      await tester.runAsync(c.guard.networkChanged);
+      expect(c.strategy!.id, 'general (ALT2)');
+      expect(runner.started, 'general (ALT2)');
+      expect(c.running, isTrue);
 
-    // Домой — блокировки есть, включаем с домашней стратегией.
-    asn = 'AS12389';
-    bridge.open = false;
-    await tester.runAsync(c.guard.networkChanged);
-    expect(c.running, isTrue);
-    expect(runner.started, 'general (ALT2)');
+      // В сети МТС zapret не нужен.
+      c.setProfileZapretOff('AS8359', true);
+      asn = 'AS8359';
+      await tester.runAsync(c.guard.networkChanged);
+      expect(c.running, isFalse);
+      expect(c.guard.autoOff?.reason, AutoOffReason.profile);
+      expect(c.guard.autoOff?.network, 'MTS');
 
-    // Отметили сеть, в которой компьютер сейчас, — zapret выключается сразу.
-    c.setProfileZapretOff('AS12389', true);
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
-    expect(c.running, isFalse);
-    expect(c.guard.autoOff?.reason, AutoOffReason.profile);
-    expect(c.guard.autoOff?.network, 'Rostelecom');
+      // Домой — блокировки есть, включаем с домашней стратегией.
+      asn = 'AS12389';
+      bridge.open = false;
+      await tester.runAsync(c.guard.networkChanged);
+      expect(c.running, isTrue);
+      expect(runner.started, 'general (ALT2)');
 
-    // Сняли отметку — zapret снова работает.
-    c.setProfileZapretOff('AS12389', false);
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
-    expect(c.running, isTrue);
-    expect(c.guard.autoOff, isNull);
+      // Отметили сеть, в которой компьютер сейчас, — zapret выключается сразу.
+      c.setProfileZapretOff('AS12389', true);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      expect(c.running, isFalse);
+      expect(c.guard.autoOff?.reason, AutoOffReason.profile);
+      expect(c.guard.autoOff?.network, 'Rostelecom');
 
-    c.dispose();
-    c.toasts.dispose();
-  });
+      // Сняли отметку — zapret снова работает.
+      c.setProfileZapretOff('AS12389', false);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      expect(c.running, isTrue);
+      expect(c.guard.autoOff, isNull);
+
+      c.dispose();
+      c.toasts.dispose();
+    },
+  );
 }

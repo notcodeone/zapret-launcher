@@ -126,7 +126,10 @@ class ToastBar extends StatelessWidget {
                 data.text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: NcType.body.copyWith(color: p.onPrimary, fontWeight: FontWeight.w500),
+                style: NcType.body.copyWith(
+                  color: p.onPrimary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             if (data.actionLabel != null)
@@ -177,11 +180,18 @@ class _ToastAction extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: p.onPrimary.withValues(alpha: s.pressed ? .16 : (s.hovered ? .12 : .08)),
+          color: p.onPrimary.withValues(
+            alpha: s.pressed ? .16 : (s.hovered ? .12 : .08),
+          ),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Text(label,
-            style: NcType.button.copyWith(color: p.onPrimary, fontWeight: FontWeight.w600)),
+        child: Text(
+          label,
+          style: NcType.button.copyWith(
+            color: p.onPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

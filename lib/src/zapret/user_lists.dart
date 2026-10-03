@@ -35,7 +35,8 @@ class UserList {
   /// Строки-комментарии в начале файла — сохраняются как есть.
   final List<String> header;
 
-  UserList withEntries(List<String> entries) => UserList(kind, entries, header: header);
+  UserList withEntries(List<String> entries) =>
+      UserList(kind, entries, header: header);
 }
 
 UserList readUserList(String listsDir, UserListKind kind) {
@@ -83,18 +84,26 @@ int countStandardList(String listsDir) {
 String decodeText(List<int> bytes) {
   if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
     final units = <int>[
-      for (var i = 2; i + 1 < bytes.length; i += 2) bytes[i] | (bytes[i + 1] << 8),
+      for (var i = 2; i + 1 < bytes.length; i += 2)
+        bytes[i] | (bytes[i + 1] << 8),
     ];
     return String.fromCharCodes(units);
   }
-  final start = bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+  final start =
+      bytes.length >= 3 &&
+          bytes[0] == 0xEF &&
+          bytes[1] == 0xBB &&
+          bytes[2] == 0xBF
+      ? 3
+      : 0;
   return utf8.decode(bytes.sublist(start), allowMalformed: true);
 }
 
 /// Файл для экспорта: комментарий-заголовок и записи по одной на строку.
 String exportText(UserList list, {DateTime? now}) {
   final d = now ?? DateTime.now();
-  final date = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  final date =
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   final title = switch (list.kind) {
     UserListKind.bypass => 'Сайты для обхода',
     UserListKind.exclude => 'Сайты-исключения',
@@ -133,7 +142,8 @@ ParsedEntries parseEntries(String text, {required bool ip}) {
         invalid.add(token);
         continue;
       }
-      if (value == UserListKind.bypass.placeholder || value == UserListKind.ipExclude.placeholder) {
+      if (value == UserListKind.bypass.placeholder ||
+          value == UserListKind.ipExclude.placeholder) {
         continue;
       }
       if (seen.add(value)) entries.add(value);
@@ -157,7 +167,10 @@ String? normalizeDomain(String raw) {
   s = s.replaceFirst(RegExp(r'\.+$'), '');
   if (s.isEmpty || InternetAddress.tryParse(s) != null) return null;
   // Без точки — только зона целиком, латиницей: «ru», «com». Одно русское слово — не домен.
-  if (!s.contains('.') && !RegExp(r'^([a-z]{2,63}|xn--[a-z0-9-]+)$').hasMatch(s)) return null;
+  if (!s.contains('.') &&
+      !RegExp(r'^([a-z]{2,63}|xn--[a-z0-9-]+)$').hasMatch(s)) {
+    return null;
+  }
   final ascii = domainToAscii(s);
   if (ascii == null || ascii.length > 253) return null;
   if (!ascii.split('.').every(_label.hasMatch)) return null;
@@ -215,7 +228,7 @@ String punycodeEncode(String input) {
       if (c < n) delta++;
       if (c != n) continue;
       var q = delta;
-      for (var k = _base;; k += _base) {
+      for (var k = _base; ; k += _base) {
         final t = _threshold(k, bias);
         if (q < t) break;
         out.writeCharCode(_digit(t + (q - t) % (_base - t)));
@@ -240,7 +253,7 @@ String punycodeDecode(String input) {
   while (pos < input.length) {
     final oldI = i;
     var w = 1;
-    for (var k = _base;; k += _base) {
+    for (var k = _base; ; k += _base) {
       if (pos >= input.length) throw const FormatException('Обрыв punycode');
       final digit = _value(input.codeUnitAt(pos++));
       i += digit * w;
@@ -269,10 +282,13 @@ int _value(int c) {
 /// Домен в ASCII: русские части — в xn--…; null — не получилось.
 String? domainToAscii(String domain) {
   try {
-    return domain.split('.').map((label) {
-      if (label.runes.every((c) => c < 0x80)) return label;
-      return 'xn--${punycodeEncode(label)}';
-    }).join('.');
+    return domain
+        .split('.')
+        .map((label) {
+          if (label.runes.every((c) => c < 0x80)) return label;
+          return 'xn--${punycodeEncode(label)}';
+        })
+        .join('.');
   } on Object {
     return null;
   }
@@ -280,12 +296,15 @@ String? domainToAscii(String domain) {
 
 /// Домен для человека: xn--… обратно в буквы.
 String domainToUnicode(String domain) {
-  return domain.split('.').map((label) {
-    if (!label.startsWith('xn--')) return label;
-    try {
-      return punycodeDecode(label.substring(4));
-    } on FormatException {
-      return label;
-    }
-  }).join('.');
+  return domain
+      .split('.')
+      .map((label) {
+        if (!label.startsWith('xn--')) return label;
+        try {
+          return punycodeDecode(label.substring(4));
+        } on FormatException {
+          return label;
+        }
+      })
+      .join('.');
 }

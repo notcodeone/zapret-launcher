@@ -13,7 +13,8 @@ import 'helpers.dart';
 
 class _IdleRunner extends ZapretRunner {
   @override
-  RuntimeStatus status() => const RuntimeStatus(processes: [], service: null, serviceStrategy: null);
+  RuntimeStatus status() =>
+      const RuntimeStatus(processes: [], service: null, serviceStrategy: null);
 }
 
 void main() {
@@ -37,21 +38,50 @@ void main() {
 
     test('без остановки через 72 часа и при работе от батареи', () {
       expect(xml, contains('<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>'));
-      expect(xml, contains('<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'));
-      expect(xml, contains('<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>'));
-      expect(xml, contains('<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>'));
+      expect(
+        xml,
+        contains(
+          '<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>',
+        ),
+      );
+      expect(
+        xml,
+        contains('<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>'),
+      );
+      expect(
+        xml,
+        contains(
+          '<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>',
+        ),
+      );
     });
 
     test('путь экранирован', () {
-      expect(xml, contains(r'<Command>"C:\Program Files\Zapret &amp; Co\ZapretLauncher.exe"</Command>'));
-      expect(xml, contains(r'<WorkingDirectory>C:\Program Files\Zapret &amp; Co</WorkingDirectory>'));
+      expect(
+        xml,
+        contains(
+          r'<Command>"C:\Program Files\Zapret &amp; Co\ZapretLauncher.exe"</Command>',
+        ),
+      );
+      expect(
+        xml,
+        contains(
+          r'<WorkingDirectory>C:\Program Files\Zapret &amp; Co</WorkingDirectory>',
+        ),
+      );
     });
 
     test('сравнение пути без учёта регистра', () {
-      const s = AutostartState(registered: true, command: r'C:\Apps\ZapretLauncher.exe');
+      const s = AutostartState(
+        registered: true,
+        command: r'C:\Apps\ZapretLauncher.exe',
+      );
       expect(s.matches(r'c:\apps\zapretlauncher.exe'), isTrue);
       expect(s.matches(r'C:\Other\ZapretLauncher.exe'), isFalse);
-      expect(AutostartState.off.matches(r'C:\Apps\ZapretLauncher.exe'), isFalse);
+      expect(
+        AutostartState.off.matches(r'C:\Apps\ZapretLauncher.exe'),
+        isFalse,
+      );
     });
   });
 

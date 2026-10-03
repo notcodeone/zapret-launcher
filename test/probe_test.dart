@@ -37,8 +37,11 @@ class _FakeEnv implements ProbeEnvironment {
     onCheck?.call();
     if (noHost) return TargetResult(t, ProbeOutcome.noHost);
     final ok = open[_running]?.contains(t.name) ?? false;
-    return TargetResult(t, ok ? ProbeOutcome.ok : ProbeOutcome.blocked,
-        latency: const Duration(milliseconds: 100));
+    return TargetResult(
+      t,
+      ok ? ProbeOutcome.ok : ProbeOutcome.blocked,
+      latency: const Duration(milliseconds: 100),
+    );
   }
 
   @override
@@ -68,12 +71,15 @@ broken line
   });
 
   test('подбор: лучшая — та, что открывает больше сайтов', () async {
-    final env = _FakeEnv({
-      null: {'GoogleMain'},
-      'a': {'GoogleMain', 'YouTubeWeb'},
-      'b': {'GoogleMain', 'YouTubeWeb', 'DiscordMain', 'DiscordCDN'},
-      'c': {'GoogleMain'},
-    }, noStart: {'d'});
+    final env = _FakeEnv(
+      {
+        null: {'GoogleMain'},
+        'a': {'GoogleMain', 'YouTubeWeb'},
+        'b': {'GoogleMain', 'YouTubeWeb', 'DiscordMain', 'DiscordCDN'},
+        'c': {'GoogleMain'},
+      },
+      noStart: {'d'},
+    );
     final report = await AutoPick(
       env: env,
       strategies: [_s('a'), _s('b'), _s('c'), _s('d')],
@@ -90,20 +96,37 @@ broken line
   });
 
   test('если ничего не лучше, чем без обхода, — лучшей нет', () async {
-    final env = _FakeEnv({null: {'GoogleMain'}, 'a': {'GoogleMain'}});
-    final report = await AutoPick(env: env, strategies: [_s('a')], targets: _targets).run();
+    final env = _FakeEnv({
+      null: {'GoogleMain'},
+      'a': {'GoogleMain'},
+    });
+    final report = await AutoPick(
+      env: env,
+      strategies: [_s('a')],
+      targets: _targets,
+    ).run();
     expect(report.best, isNull);
   });
 
   test('отмена останавливает перебор', () async {
-    final env = _FakeEnv({null: {}, 'a': {'GoogleMain'}, 'b': {'GoogleMain'}});
-    late AutoPick pick;
-    pick = AutoPick(env: env, strategies: [_s('a'), _s('b')], targets: _targets);
-    final progress = <AutoPickProgress>[];
-    final report = await pick.run(onProgress: (p) {
-      progress.add(p);
-      if (p.current?.id == 'a') pick.cancel();
+    final env = _FakeEnv({
+      null: {},
+      'a': {'GoogleMain'},
+      'b': {'GoogleMain'},
     });
+    late AutoPick pick;
+    pick = AutoPick(
+      env: env,
+      strategies: [_s('a'), _s('b')],
+      targets: _targets,
+    );
+    final progress = <AutoPickProgress>[];
+    final report = await pick.run(
+      onProgress: (p) {
+        progress.add(p);
+        if (p.current?.id == 'a') pick.cancel();
+      },
+    );
     expect(report.cancelled, isTrue);
     expect(report.results, isEmpty);
     expect(env.log, isNot(contains('start b')));
@@ -113,7 +136,11 @@ broken line
   test('без обхода всё открывается — стратегии не перебираются', () async {
     final all = {for (final t in _targets) t.name};
     final env = _FakeEnv({null: all, 'a': all});
-    final report = await AutoPick(env: env, strategies: [_s('a')], targets: _targets).run();
+    final report = await AutoPick(
+      env: env,
+      strategies: [_s('a')],
+      targets: _targets,
+    ).run();
     expect(report.results, isEmpty);
     expect(report.best, isNull);
     expect(env.log, isNot(contains('start a')));
@@ -188,7 +215,9 @@ broken line
       final closed = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       final port = closed.port;
       await closed.close();
-      final r = await prober.check(ProbeTarget('T', Uri.parse('http://127.0.0.1:$port/')));
+      final r = await prober.check(
+        ProbeTarget('T', Uri.parse('http://127.0.0.1:$port/')),
+      );
       expect(r.outcome, ProbeOutcome.blocked);
     });
   });

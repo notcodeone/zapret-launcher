@@ -26,12 +26,19 @@ class GameFilter {
   bool get enabled => mode != GameFilterMode.disabled;
 
   String get tcpValue =>
-      mode == GameFilterMode.all || mode == GameFilterMode.tcp ? tcpRange : _off;
+      mode == GameFilterMode.all || mode == GameFilterMode.tcp
+      ? tcpRange
+      : _off;
   String get udpValue =>
-      mode == GameFilterMode.all || mode == GameFilterMode.udp ? udpRange : _off;
+      mode == GameFilterMode.all || mode == GameFilterMode.udp
+      ? udpRange
+      : _off;
 
-  GameFilter copyWith({GameFilterMode? mode}) =>
-      GameFilter(mode: mode ?? this.mode, tcpRange: tcpRange, udpRange: udpRange);
+  GameFilter copyWith({GameFilterMode? mode}) => GameFilter(
+    mode: mode ?? this.mode,
+    tcpRange: tcpRange,
+    udpRange: udpRange,
+  );
 
   /// Разбор файла в формате service.bat: строки `mode=…`, `tcp=…`, `udp=…`.
   /// Старый формат — просто `all`, `tcp` или `udp` без значения.
@@ -74,7 +81,8 @@ class GameFilter {
     );
   }
 
-  String serialize() => 'mode=${mode.name}\r\ntcp=$tcpRange\r\nudp=$udpRange\r\n';
+  String serialize() =>
+      'mode=${mode.name}\r\ntcp=$tcpRange\r\nudp=$udpRange\r\n';
 
   /// Порты и диапазоны через запятую: «1024-1934,1936-65535». null — ошибка.
   static String? validateRange(String? input) {
@@ -82,7 +90,8 @@ class GameFilter {
     final s = input.replaceAll(' ', '');
     if (s.isEmpty) return null;
     for (final item in s.split(',')) {
-      final m = RegExp(r'^([1-9]\d{0,4})(?:-([1-9]\d{0,4}))?$').firstMatch(item);
+      final m = RegExp(r'^([1-9]\d{0,4})(?:-([1-9]\d{0,4}))?$')
+          .firstMatch(item);
       if (m == null) return null;
       final a = int.parse(m[1]!);
       final b = int.parse(m[2] ?? m[1]!);
@@ -132,8 +141,10 @@ class ZapretInstall {
   static String? readVersion(Directory dir) {
     final f = File(p.join(dir.path, 'service.bat'));
     if (!f.existsSync()) return null;
-    final m = RegExp(r'set\s+"LOCAL_VERSION=([^"]+)"', caseSensitive: false)
-        .firstMatch(f.readAsStringSync());
+    final m = RegExp(
+      r'set\s+"LOCAL_VERSION=([^"]+)"',
+      caseSensitive: false,
+    ).firstMatch(f.readAsStringSync());
     return m?.group(1)?.trim();
   }
 
@@ -147,12 +158,14 @@ class ZapretInstall {
 
   /// Переменные, которые .bat получают от service.bat.
   Map<String, String> variables(GameFilter filter) => {
-        'BIN': '$binDir\\',
-        'LISTS': '$listsDir\\',
-        'GameFilter': filter.mode == GameFilterMode.udp ? filter.udpValue : filter.tcpValue,
-        'GameFilterTCP': filter.tcpValue,
-        'GameFilterUDP': filter.udpValue,
-      };
+    'BIN': '$binDir\\',
+    'LISTS': '$listsDir\\',
+    'GameFilter': filter.mode == GameFilterMode.udp
+        ? filter.udpValue
+        : filter.tcpValue,
+    'GameFilterTCP': filter.tcpValue,
+    'GameFilterUDP': filter.udpValue,
+  };
 
   /// Готовые аргументы winws.exe для стратегии.
   Future<List<String>> argsFor(Strategy strategy, GameFilter filter) async =>
@@ -232,7 +245,10 @@ class ZapretInstall {
     }
 
     create('ipset-exclude-user.txt', '$_ipsetStub\r\n');
-    create('list-general-user.txt', '# Never leave this file empty\r\ndomain.example.abc\r\n');
+    create(
+      'list-general-user.txt',
+      '# Never leave this file empty\r\ndomain.example.abc\r\n',
+    );
     create('list-exclude-user.txt', 'domain.example.abc\r\n');
   }
 

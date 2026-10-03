@@ -11,18 +11,26 @@ Map<String, dynamic> _release({
   bool prerelease = false,
   String url = 'https://example.com/setup.exe',
   int size = 10,
-}) =>
+}) => {
+  'tag_name': tag,
+  'html_url': 'https://github.com/notcodeone/zapret-launcher/releases/tag/$tag',
+  'prerelease': prerelease,
+  'draft': false,
+  'body': '- Что нового',
+  'assets': [
     {
-      'tag_name': tag,
-      'html_url': 'https://github.com/notcodeone/zapret-launcher/releases/tag/$tag',
-      'prerelease': prerelease,
-      'draft': false,
-      'body': '- Что нового',
-      'assets': [
-        {'name': 'notes.txt', 'browser_download_url': 'https://example.com/n.txt', 'size': 1},
-        {'name': asset, 'browser_download_url': url, 'size': size, 'digest': ?digest},
-      ],
-    };
+      'name': 'notes.txt',
+      'browser_download_url': 'https://example.com/n.txt',
+      'size': 1,
+    },
+    {
+      'name': asset,
+      'browser_download_url': url,
+      'size': size,
+      'digest': ?digest,
+    },
+  ],
+};
 
 void main() {
   group('parseRelease', () {
@@ -35,7 +43,10 @@ void main() {
     });
 
     test('без установщика, предрелиз и странный тег — не обновление', () {
-      expect(LauncherUpdates.parseRelease(_release(asset: 'source.zip')), isNull);
+      expect(
+        LauncherUpdates.parseRelease(_release(asset: 'source.zip')),
+        isNull,
+      );
       expect(LauncherUpdates.parseRelease(_release(prerelease: true)), isNull);
       expect(LauncherUpdates.parseRelease(_release(tag: 'nightly')), isNull);
     });
@@ -44,8 +55,12 @@ void main() {
   test('копия в Program Files — установленная', () {
     final pf = Platform.environment['ProgramFiles']!;
     expect(isInstalledCopy('$pf\\ZapretLauncher\\ZapretLauncher.exe'), isTrue);
-    expect(isInstalledCopy(r'C:\Git\zapret-launcher\build\windows\x64\runner\Release\ZapretLauncher.exe'),
-        isFalse);
+    expect(
+      isInstalledCopy(
+        r'C:\Git\zapret-launcher\build\windows\x64\runner\Release\ZapretLauncher.exe',
+      ),
+      isFalse,
+    );
   });
 
   group('download', () {
@@ -62,16 +77,21 @@ void main() {
     });
     tearDown(() => server.close(force: true));
 
-    LauncherRelease release(String? sha) => LauncherUpdates.parseRelease(_release(
-          url: 'http://127.0.0.1:${server.port}/setup.exe',
-          size: payload.length,
-          digest: sha == null ? null : 'sha256:$sha',
-        ))!;
+    LauncherRelease release(String? sha) => LauncherUpdates.parseRelease(
+      _release(
+        url: 'http://127.0.0.1:${server.port}/setup.exe',
+        size: payload.length,
+        digest: sha == null ? null : 'sha256:$sha',
+      ),
+    )!;
 
     test('скачивает и сверяет хэш', () async {
       final u = LauncherUpdates();
       final progress = <double?>[];
-      final f = await u.download(release(sha256.convert(payload).toString()), onProgress: progress.add);
+      final f = await u.download(
+        release(sha256.convert(payload).toString()),
+        onProgress: progress.add,
+      );
       expect(f.lengthSync(), payload.length);
       expect(progress.last, 1.0);
       await f.parent.delete(recursive: true);

@@ -10,7 +10,8 @@ import 'ui/theme.dart';
 
 /// Окно и значок в трее: закрытие в трей, меню значка, уведомления, выход.
 class DesktopShell {
-  DesktopShell(this._c, {WindowChannel? window}) : _w = window ?? WindowChannel();
+  DesktopShell(this._c, {WindowChannel? window})
+    : _w = window ?? WindowChannel();
 
   final AppController _c;
   final WindowChannel _w;
@@ -119,10 +120,12 @@ class DesktopShell {
     if (tooltip.length > 120) tooltip = '${tooltip.substring(0, 119)}…';
 
     // Значок — под цвет панели задач: на тёмной светлый квадрат, на светлой тёмный.
-    final lightTaskbar = win.readRegistryDword(
-            r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize',
-            'SystemUsesLightTheme',
-            currentUser: true) ==
+    final lightTaskbar =
+        win.readRegistryDword(
+          r'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize',
+          'SystemUsesLightTheme',
+          currentUser: true,
+        ) ==
         1;
     final alarm = _c.error != null;
     final busy = _c.busy != null;
@@ -135,10 +138,10 @@ class DesktopShell {
       final dot = alarm
           ? p.danger
           : busy
-              ? p.warning
-              : running
-                  ? p.success
-                  : null;
+          ? p.warning
+          : running
+          ? p.success
+          : null;
       // Выключен — знак приглушён.
       final fade = running || busy ? 1.0 : .6;
       final rgba = await BrandMark.renderRgba(
@@ -146,23 +149,32 @@ class DesktopShell {
         background: p.primary.withValues(alpha: fade),
         foreground: p.onPrimary,
         dot: dot,
-        dotRing: lightTaskbar ? const Color(0xFFEEEEEE) : const Color(0xFF1C1C1C),
+        dotRing: lightTaskbar
+            ? const Color(0xFFEEEEEE)
+            : const Color(0xFF1C1C1C),
       );
       await _w.setTray(rgba: rgba, size: size, tooltip: tooltip);
       _iconKey = iconKey;
       _tooltip = tooltip;
     }
 
-    final canToggle = _c.elevated && !busy && _c.strategy != null && !_c.runningElsewhere;
+    final canToggle =
+        _c.elevated && !busy && _c.strategy != null && !_c.runningElsewhere;
     final menu = [
       TrayMenuEntry(_idStatus, status, enabled: false),
       const TrayMenuEntry.separator(),
       const TrayMenuEntry(_idOpen, 'Открыть ZapretLauncher', isDefault: true),
-      TrayMenuEntry(_idToggle, running ? 'Выключить zapret' : 'Включить zapret', enabled: canToggle),
+      TrayMenuEntry(
+        _idToggle,
+        running ? 'Выключить zapret' : 'Включить zapret',
+        enabled: canToggle,
+      ),
       const TrayMenuEntry.separator(),
       const TrayMenuEntry(_idQuit, 'Выход'),
     ];
-    final menuKey = menu.map((e) => '${e.id}:${e.label}:${e.enabled}').join('|');
+    final menuKey = menu
+        .map((e) => '${e.id}:${e.label}:${e.enabled}')
+        .join('|');
     if (menuKey != _menuKey) {
       await _w.setTrayMenu(menu);
       _menuKey = menuKey;

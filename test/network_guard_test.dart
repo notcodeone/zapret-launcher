@@ -44,14 +44,14 @@ void main() {
   late bool enabled;
 
   NetworkGuard make({String print = 'wifi=192.168.1.5'}) => NetworkGuard(
-        zapret: zapret,
-        enabled: () => enabled,
-        countryEnabled: () => true,
-        lookup: () async => (country: country, source: 'test'),
-        fingerprint: () async => print,
-        onEvent: (title, _) => events.add(title),
-        settle: Duration.zero,
-      );
+    zapret: zapret,
+    enabled: () => enabled,
+    countryEnabled: () => true,
+    lookup: () async => (country: country, source: 'test'),
+    fingerprint: () async => print,
+    onEvent: (title, _) => events.add(title),
+    settle: Duration.zero,
+  );
 
   setUp(() {
     zapret = _FakeZapret();
@@ -60,44 +60,50 @@ void main() {
     enabled = true;
   });
 
-  test('включили VPN в другой стране — zapret выключается, вернулись — включается', () async {
-    final g = make();
-    await g.start();
-    expect(g.baseline, 'RU');
+  test(
+    'включили VPN в другой стране — zapret выключается, вернулись — включается',
+    () async {
+      final g = make();
+      await g.start();
+      expect(g.baseline, 'RU');
 
-    // Через VPN всё открывается и без обхода.
-    country = 'FI';
-    zapret.open = true;
-    await g.networkChanged();
-    expect(zapret.running, isFalse);
-    expect(g.autoOff?.reason, AutoOffReason.countryChanged);
-    expect(g.autoOff?.to, 'FI');
-    expect(events.single, contains('сменилась страна'));
+      // Через VPN всё открывается и без обхода.
+      country = 'FI';
+      zapret.open = true;
+      await g.networkChanged();
+      expect(zapret.running, isFalse);
+      expect(g.autoOff?.reason, AutoOffReason.countryChanged);
+      expect(g.autoOff?.to, 'FI');
+      expect(events.single, contains('сменилась страна'));
 
-    // Сеть снова сменилась, но блокировок по-прежнему нет — не включаем.
-    await g.networkChanged();
-    expect(zapret.running, isFalse);
+      // Сеть снова сменилась, но блокировок по-прежнему нет — не включаем.
+      await g.networkChanged();
+      expect(zapret.running, isFalse);
 
-    // VPN выключили: снова Россия и блокировки.
-    country = 'RU';
-    zapret.open = false;
-    await g.networkChanged();
-    expect(zapret.running, isTrue);
-    expect(g.autoOff, isNull);
-    expect(events.last, 'Zapret снова включён');
-    g.dispose();
-  });
+      // VPN выключили: снова Россия и блокировки.
+      country = 'RU';
+      zapret.open = false;
+      await g.networkChanged();
+      expect(zapret.running, isTrue);
+      expect(g.autoOff, isNull);
+      expect(events.last, 'Zapret снова включён');
+      g.dispose();
+    },
+  );
 
-  test('та же страна, в новой сети блокировок нет — zapret выключается', () async {
-    final g = make();
-    await g.start();
-    zapret.open = true;
-    await g.networkChanged();
-    expect(zapret.log, ['stop', 'check']);
-    expect(zapret.running, isFalse);
-    expect(g.autoOff?.reason, AutoOffReason.servicesOpen);
-    g.dispose();
-  });
+  test(
+    'та же страна, в новой сети блокировок нет — zapret выключается',
+    () async {
+      final g = make();
+      await g.start();
+      zapret.open = true;
+      await g.networkChanged();
+      expect(zapret.log, ['stop', 'check']);
+      expect(zapret.running, isFalse);
+      expect(g.autoOff?.reason, AutoOffReason.servicesOpen);
+      g.dispose();
+    },
+  );
 
   test('та же страна, блокировки на месте — zapret снова включён', () async {
     final g = make();
@@ -131,21 +137,24 @@ void main() {
     g.dispose();
   });
 
-  test('zapret включили при VPN, VPN выключили — блокировки есть, zapret остаётся', () async {
-    country = 'FI';
-    final g = make();
-    await g.start();
-    expect(g.baseline, 'FI');
+  test(
+    'zapret включили при VPN, VPN выключили — блокировки есть, zapret остаётся',
+    () async {
+      country = 'FI';
+      final g = make();
+      await g.start();
+      expect(g.baseline, 'FI');
 
-    country = 'RU';
-    zapret.open = false;
-    await g.networkChanged();
-    expect(zapret.log, ['stop', 'check', 'start']);
-    expect(zapret.running, isTrue);
-    expect(g.autoOff, isNull);
-    expect(g.baseline, 'RU');
-    g.dispose();
-  });
+      country = 'RU';
+      zapret.open = false;
+      await g.networkChanged();
+      expect(zapret.log, ['stop', 'check', 'start']);
+      expect(zapret.running, isTrue);
+      expect(g.autoOff, isNull);
+      expect(g.baseline, 'RU');
+      g.dispose();
+    },
+  );
 
   test('включили сами в другой стране — это новая точка отсчёта', () async {
     final g = make();
@@ -231,32 +240,35 @@ void main() {
     g.dispose();
   });
 
-  test('лаунчер открыли в сети, где zapret не нужен, — работающий выключается', () async {
-    Future<ProfileOutcome> office({required bool startup}) async =>
-        (decision: ProfileDecision.zapretOff, network: 'Офис');
-    NetworkGuard guard() => NetworkGuard(
-          zapret: zapret,
-          enabled: () => enabled,
-          countryEnabled: () => true,
-          lookup: () async => (country: country, source: 'test'),
-          fingerprint: () async => 'wifi',
-          onNetwork: office,
-        );
+  test(
+    'лаунчер открыли в сети, где zapret не нужен, — работающий выключается',
+    () async {
+      Future<ProfileOutcome> office({required bool startup}) async =>
+          (decision: ProfileDecision.zapretOff, network: 'Офис');
+      NetworkGuard guard() => NetworkGuard(
+        zapret: zapret,
+        enabled: () => enabled,
+        countryEnabled: () => true,
+        lookup: () async => (country: country, source: 'test'),
+        fingerprint: () async => 'wifi',
+        onNetwork: office,
+      );
 
-    // Без слежения за сетью сам не трогает.
-    enabled = false;
-    final off = guard();
-    await off.start();
-    expect(zapret.log, isEmpty);
-    off.dispose();
+      // Без слежения за сетью сам не трогает.
+      enabled = false;
+      final off = guard();
+      await off.start();
+      expect(zapret.log, isEmpty);
+      off.dispose();
 
-    enabled = true;
-    final g = guard();
-    await g.start();
-    expect(zapret.log, ['stop']);
-    expect(g.autoOff?.reason, AutoOffReason.profile);
-    g.dispose();
-  });
+      enabled = true;
+      final g = guard();
+      await g.start();
+      expect(zapret.log, ['stop']);
+      expect(g.autoOff?.reason, AutoOffReason.profile);
+      g.dispose();
+    },
+  );
 
   group('lookupCountry', () {
     late HttpServer server;
@@ -280,11 +292,22 @@ void main() {
     String url(String path) => 'http://127.0.0.1:${server.port}$path';
 
     test('неизвестный код пропускается, отвечает следующий', () async {
-      final r = await lookupCountry(sources: [
-        CountrySource('bad', url('/bad'), (b) => RegExp('"country": "(..)"').firstMatch(b)?.group(1)),
-        CountrySource('trace', url('/trace'),
-            (b) => RegExp(r'^loc=(\S+)$', multiLine: true).firstMatch(b)?.group(1)),
-      ], stagger: const Duration(milliseconds: 10));
+      final r = await lookupCountry(
+        sources: [
+          CountrySource(
+            'bad',
+            url('/bad'),
+            (b) => RegExp('"country": "(..)"').firstMatch(b)?.group(1),
+          ),
+          CountrySource(
+            'trace',
+            url('/trace'),
+            (b) =>
+                RegExp(r'^loc=(\S+)$', multiLine: true).firstMatch(b)?.group(1),
+          ),
+        ],
+        stagger: const Duration(milliseconds: 10),
+      );
       expect(r.country, 'FI');
       expect(r.source, 'trace');
       expect(countryName(r.country), 'Финляндия');
@@ -292,8 +315,10 @@ void main() {
 
     test('никто не ответил — ошибка со списком причин', () async {
       expect(
-        lookupCountry(sources: [CountrySource('fail', url('/fail'), (b) => b)],
-            stagger: const Duration(milliseconds: 10)),
+        lookupCountry(
+          sources: [CountrySource('fail', url('/fail'), (b) => b)],
+          stagger: const Duration(milliseconds: 10),
+        ),
         throwsA(isA<CountryLookupException>()),
       );
     });
@@ -316,19 +341,24 @@ void main() {
     String url(String path) => 'http://127.0.0.1:${server.port}$path';
 
     test('ответ ipwho.is', () async {
-      final r = await lookupProvider(sources: [
-        ProviderSource('ipwho', url('/ipwho'), ProviderSource.all[0].parse),
-      ]);
+      final r = await lookupProvider(
+        sources: [
+          ProviderSource('ipwho', url('/ipwho'), ProviderSource.all[0].parse),
+        ],
+      );
       expect(r.asn, 'AS12389');
       expect(r.isp, 'Rostelecom');
       expect(r.country, 'RU');
     });
 
     test('первый без провайдера — отвечает следующий', () async {
-      final r = await lookupProvider(sources: [
-        ProviderSource('bad', url('/bad'), ProviderSource.all[0].parse),
-        ProviderSource('ipapi', url('/ipapi'), ProviderSource.all[1].parse),
-      ], stagger: const Duration(milliseconds: 10));
+      final r = await lookupProvider(
+        sources: [
+          ProviderSource('bad', url('/bad'), ProviderSource.all[0].parse),
+          ProviderSource('ipapi', url('/ipapi'), ProviderSource.all[1].parse),
+        ],
+        stagger: const Duration(milliseconds: 10),
+      );
       expect(r.asn, 'AS8359');
       expect(r.source, 'ipapi');
     });

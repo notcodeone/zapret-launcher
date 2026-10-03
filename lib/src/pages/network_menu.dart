@@ -20,8 +20,12 @@ Widget networkButton(BuildContext context, AppController c) {
 BadgeTone? networkBadge(AppController c) {
   final r = c.network;
   if (r == null) return c.checkingNetwork ? BadgeTone.pending : null;
-  if (r.offline || r.groupsWith(ServiceHealth.down).isNotEmpty) return BadgeTone.alarm;
-  if (r.groupsWith(ServiceHealth.partial).isNotEmpty || c.checkingNetwork) return BadgeTone.pending;
+  if (r.offline || r.groupsWith(ServiceHealth.down).isNotEmpty) {
+    return BadgeTone.alarm;
+  }
+  if (r.groupsWith(ServiceHealth.partial).isNotEmpty || c.checkingNetwork) {
+    return BadgeTone.pending;
+  }
   return BadgeTone.ok;
 }
 
@@ -35,7 +39,9 @@ String networkSummary(NetworkReport? r, {required bool checking}) {
         ? '${down.single} не открывается'
         : '${down.take(down.length - 1).join(', ')} и ${down.last} не открываются';
   }
-  if (r.groupsWith(ServiceHealth.partial).isNotEmpty) return 'Открывается не всё';
+  if (r.groupsWith(ServiceHealth.partial).isNotEmpty) {
+    return 'Открывается не всё';
+  }
   return 'Всё открывается';
 }
 
@@ -53,7 +59,11 @@ Future<void> showNetworkMenu(BuildContext context) {
     barrierColor: context.palette.scrim,
     transitionDuration: NcMotion.toastIn,
     transitionBuilder: (context, a, _, child) {
-      final t = CurvedAnimation(parent: a, curve: NcMotion.enter, reverseCurve: NcMotion.exit);
+      final t = CurvedAnimation(
+        parent: a,
+        curve: NcMotion.enter,
+        reverseCurve: NcMotion.exit,
+      );
       return FadeTransition(
         opacity: t,
         child: ScaleTransition(
@@ -88,28 +98,36 @@ class _NetworkMenu extends StatelessWidget {
       caption = 'Проверяю Discord, YouTube и другие сайты из targets.txt.';
     } else {
       final mode = r.withZapret
-          ? (r.strategyTitle == null ? 'с zapret' : 'с zapret «${r.strategyTitle}»')
+          ? (r.strategyTitle == null
+                ? 'с zapret'
+                : 'с zapret «${r.strategyTitle}»')
           : 'без zapret';
-      caption = c.checkingNetwork ? 'Проверяю снова…' : 'Сайты проверены в ${_time(r.checkedAt)} $mode.';
+      caption = c.checkingNetwork
+          ? 'Проверяю снова…'
+          : 'Сайты проверены в ${_time(r.checkedAt)} $mode.';
     }
-    if (g.countrySource != null) caption += ' Страна — по данным ${g.countrySource}.';
+    if (g.countrySource != null) {
+      caption += ' Страна — по данным ${g.countrySource}.';
+    }
 
     // Заголовок — страна, как в окне сети ClaudeLauncher; без определения страны — сводка.
     final countryOn = c.settings.countryCheck;
     final title = !countryOn
         ? networkSummary(r, checking: c.checkingNetwork)
         : g.countryLabel ??
-            (g.checkingCountry || g.countryCheckedAt == null ? 'Определяю страну…' : 'Страна не определена');
+              (g.checkingCountry || g.countryCheckedAt == null
+                  ? 'Определяю страну…'
+                  : 'Страна не определена');
 
     final guardLine = !c.settings.networkGuard
         ? null
         : g.autoOff != null && !c.running
-            ? (Tone.warning, 'Zapret выключен: сменилась сеть')
-            : g.handling
-                ? (Tone.info, 'Проверяю новую сеть')
-                : c.elevated
-                    ? (Tone.success, 'Слежу за сетью')
-                    : (Tone.neutral, 'Слежение за сетью ждёт прав администратора');
+        ? (Tone.warning, 'Zapret выключен: сменилась сеть')
+        : g.handling
+        ? (Tone.info, 'Проверяю новую сеть')
+        : c.elevated
+        ? (Tone.success, 'Слежу за сетью')
+        : (Tone.neutral, 'Слежение за сетью ждёт прав администратора');
 
     return Align(
       alignment: Alignment.topRight,
@@ -146,14 +164,17 @@ class _NetworkMenu extends StatelessWidget {
                               Icon(LucideIcons.earth, size: 20, color: p.text),
                               const SizedBox(width: 8),
                             ],
-                            Expanded(child: Text(title, style: NcType.dialogTitle)),
+                            Expanded(
+                              child: Text(title, style: NcType.dialogTitle),
+                            ),
                           ],
                         ),
                         if (countryOn && r != null) ...[
                           const SizedBox(height: 4),
                           Text(
                             [
-                              if (c.currentNetworkName != null) c.currentNetworkName!,
+                              if (c.currentNetworkName != null)
+                                c.currentNetworkName!,
                               networkSummary(r, checking: c.checkingNetwork),
                             ].join(' · '),
                             style: NcType.body.copyWith(color: p.muted),
@@ -173,8 +194,10 @@ class _NetworkMenu extends StatelessWidget {
                                 },
                                 text: switch (r.health(group)) {
                                   ServiceHealth.ok => '$group — открывается',
-                                  ServiceHealth.partial => '$group — частично, $ok из $total',
-                                  ServiceHealth.down => '$group — не открывается',
+                                  ServiceHealth.partial =>
+                                    '$group — частично, $ok из $total',
+                                  ServiceHealth.down =>
+                                    '$group — не открывается',
                                 },
                               ),
                             ),
@@ -182,7 +205,10 @@ class _NetworkMenu extends StatelessWidget {
                         if (guardLine != null)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 4),
-                            child: StatusLine(tone: guardLine.$1, text: guardLine.$2),
+                            child: StatusLine(
+                              tone: guardLine.$1,
+                              text: guardLine.$2,
+                            ),
                           ),
                         if (r != null && r.spoofed)
                           Padding(
@@ -193,8 +219,13 @@ class _NetworkMenu extends StatelessWidget {
                             ),
                           ),
                         const SizedBox(height: 6),
-                        Text(caption,
-                            style: NcType.caption.copyWith(color: p.muted, fontSize: 12)),
+                        Text(
+                          caption,
+                          style: NcType.caption.copyWith(
+                            color: p.muted,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -203,13 +234,17 @@ class _NetworkMenu extends StatelessWidget {
                     icon: LucideIcons.refreshCw,
                     label: 'Проверить сеть',
                     busy: c.checkingNetwork,
-                    onTap: c.busy == null && !c.checkingNetwork ? c.checkNetwork : null,
+                    onTap: c.busy == null && !c.checkingNetwork
+                        ? c.checkNetwork
+                        : null,
                   ),
                   Divider(height: 1, thickness: 1, color: p.divider),
                   _MenuItem(
                     icon: LucideIcons.wandSparkles,
                     label: 'Подобрать стратегию',
-                    onTap: c.install == null ? null : () => go(const AutoPickPage()),
+                    onTap: c.install == null
+                        ? null
+                        : () => go(const AutoPickPage()),
                   ),
                   Divider(height: 1, thickness: 1, color: p.divider),
                   _MenuItem(
@@ -229,7 +264,12 @@ class _NetworkMenu extends StatelessWidget {
 
 /// Пункт меню: значок 20, текст 14 pt, поля 16 × 13.
 class _MenuItem extends StatelessWidget {
-  const _MenuItem({required this.icon, required this.label, required this.onTap, this.busy = false});
+  const _MenuItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.busy = false,
+  });
 
   final IconData icon;
   final String label;
@@ -247,8 +287,8 @@ class _MenuItem extends StatelessWidget {
         color: s.pressed
             ? p.hoverTint(pressed: true)
             : s.hovered
-                ? p.hoverTint()
-                : p.hoverTint().withValues(alpha: 0),
+            ? p.hoverTint()
+            : p.hoverTint().withValues(alpha: 0),
         child: Row(
           children: [
             SizedBox.square(
@@ -256,13 +296,24 @@ class _MenuItem extends StatelessWidget {
               child: busy
                   ? Padding(
                       padding: const EdgeInsets.all(2),
-                      child: CircularProgressIndicator(strokeWidth: 2, color: p.text),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: p.text,
+                      ),
                     )
-                  : Icon(icon, size: 20, color: onTap == null ? p.muted : p.text),
+                  : Icon(
+                      icon,
+                      size: 20,
+                      color: onTap == null ? p.muted : p.text,
+                    ),
             ),
             const SizedBox(width: 12),
-            Text(label,
-                style: NcType.body.copyWith(color: onTap == null && !busy ? p.muted : p.text)),
+            Text(
+              label,
+              style: NcType.body.copyWith(
+                color: onTap == null && !busy ? p.muted : p.text,
+              ),
+            ),
           ],
         ),
       ),

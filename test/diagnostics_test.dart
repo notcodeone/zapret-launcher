@@ -45,7 +45,11 @@ class _FakeSystem implements DiagnosticsSystem {
 }
 
 win.ServiceEntry _svc(String name, [String display = '', bool on = true]) =>
-    win.ServiceEntry(name, display, on ? win.ServiceState.running : win.ServiceState.stopped);
+    win.ServiceEntry(
+      name,
+      display,
+      on ? win.ServiceState.running : win.ServiceState.stopped,
+    );
 
 DiagnosticResult? _find(List<DiagnosticResult> r, String id) {
   for (final x in r) {
@@ -58,7 +62,10 @@ const _repo = '1.1.1.1 a.example\r\n# comment\r\n2.2.2.2 b.example\r\n';
 
 void main() {
   test('чистая система — всё в порядке', () {
-    final r = diagnose(_FakeSystem(), repoHosts: _repo.replaceAll('\r\n', '\n'));
+    final r = diagnose(
+      _FakeSystem(),
+      repoHosts: _repo.replaceAll('\r\n', '\n'),
+    );
     expect(r.where((x) => x.level == CheckLevel.problem), isEmpty);
     expect(_find(r, 'bfe')!.level, CheckLevel.ok);
     expect(_find(r, 'software')!.level, CheckLevel.ok);
@@ -67,21 +74,25 @@ void main() {
   });
 
   test('проблемы находятся и предлагают исправления', () {
-    final r = diagnose(_FakeSystem(
-      running: {'WinDivert'},
-      serviceList: [
-        _svc('GoodbyeDPI', 'GoodbyeDPI', false),
-        _svc('KNDBWM', 'Killer Network Service'),
-        _svc('NordVPN Service', 'NordVPN'),
-        _svc('Intel(R) CNS', 'Intel Connectivity Network Service'),
-      ],
-      processes: {'AdguardSvc.exe'},
-      proxy: '127.0.0.1:8080',
-      doh: false,
-      hosts: '1.2.3.4 www.youtube.com\r\n',
-    ));
+    final r = diagnose(
+      _FakeSystem(
+        running: {'WinDivert'},
+        serviceList: [
+          _svc('GoodbyeDPI', 'GoodbyeDPI', false),
+          _svc('KNDBWM', 'Killer Network Service'),
+          _svc('NordVPN Service', 'NordVPN'),
+          _svc('Intel(R) CNS', 'Intel Connectivity Network Service'),
+        ],
+        processes: {'AdguardSvc.exe'},
+        proxy: '127.0.0.1:8080',
+        doh: false,
+        hosts: '1.2.3.4 www.youtube.com\r\n',
+      ),
+    );
     expect(_find(r, 'bfe')!.fix, isA<StartServiceFix>());
-    expect((_find(r, 'conflicts')!.fix as RemoveServicesFix).services, ['GoodbyeDPI']);
+    expect((_find(r, 'conflicts')!.fix as RemoveServicesFix).services, [
+      'GoodbyeDPI',
+    ]);
     expect(_find(r, 'windivert')!.fix, isA<UnloadDriverFix>());
     expect(_find(r, 'adguard')!.level, CheckLevel.problem);
     expect(_find(r, 'killer')!.level, CheckLevel.problem);
@@ -99,7 +110,9 @@ void main() {
   });
 
   test('драйвер при запущенном winws.exe — не проблема', () {
-    final r = diagnose(_FakeSystem(running: {'BFE', 'WinDivert'}, processes: {'winws.exe'}));
+    final r = diagnose(
+      _FakeSystem(running: {'BFE', 'WinDivert'}, processes: {'winws.exe'}),
+    );
     expect(_find(r, 'windivert'), isNull);
   });
 
@@ -109,11 +122,13 @@ void main() {
     tearDown(() => tmp.deleteSync(recursive: true));
 
     ZapretInstall make(String dir, {bool sys = true}) {
-      final root = Directory(p.join(tmp.path, dir))..createSync(recursive: true);
+      final root = Directory(p.join(tmp.path, dir))
+        ..createSync(recursive: true);
       File(p.join(root.path, 'bin', 'winws.exe')).createSync(recursive: true);
       File(p.join(root.path, 'bin', 'WinDivert.dll')).createSync();
       if (sys) File(p.join(root.path, 'bin', 'WinDivert64.sys')).createSync();
-      File(p.join(root.path, 'general.bat')).writeAsStringSync('"%BIN%winws.exe" --new');
+      File(p.join(root.path, 'general.bat'))
+          .writeAsStringSync('"%BIN%winws.exe" --new');
       return ZapretInstall.open(root.path)!;
     }
 
@@ -125,10 +140,15 @@ void main() {
     });
 
     test('русские буквы и OneDrive в пути', () {
-      expect(_find(diagnose(_FakeSystem(), install: make('запрет')), 'path')!.level,
-          CheckLevel.warning);
+      expect(
+        _find(diagnose(_FakeSystem(), install: make('запрет')), 'path')!.level,
+        CheckLevel.warning,
+      );
       final inst = make('od/zapret');
-      final r = diagnose(_FakeSystem(oneDrivePath: p.join(tmp.path, 'od')), install: inst);
+      final r = diagnose(
+        _FakeSystem(oneDrivePath: p.join(tmp.path, 'od')),
+        install: inst,
+      );
       expect(_find(r, 'path')!.level, CheckLevel.problem);
     });
   });
@@ -136,8 +156,14 @@ void main() {
   group('hosts', () {
     test('статус по первой и последней строке', () {
       expect(hostsBlockStatus('x', _repo), HostsStatus.missing);
-      expect(hostsBlockStatus('1.1.1.1 a.example\n2.2.2.2 b.example', _repo), HostsStatus.upToDate);
-      expect(hostsBlockStatus('$hostsBegin\n9.9.9.9 old\n$hostsEnd', _repo), HostsStatus.outdated);
+      expect(
+        hostsBlockStatus('1.1.1.1 a.example\n2.2.2.2 b.example', _repo),
+        HostsStatus.upToDate,
+      );
+      expect(
+        hostsBlockStatus('$hostsBegin\n9.9.9.9 old\n$hostsEnd', _repo),
+        HostsStatus.outdated,
+      );
     });
 
     test('блок дописывается, а при повторе — заменяется', () {
@@ -155,8 +181,11 @@ void main() {
   });
 
   group('сводка сети', () {
-    TargetResult t(String name, bool ok, {ProbeOutcome? outcome}) => TargetResult(
-        ProbeTarget(name, Uri.parse('https://x.y')), outcome ?? (ok ? ProbeOutcome.ok : ProbeOutcome.blocked));
+    TargetResult t(String name, bool ok, {ProbeOutcome? outcome}) =>
+        TargetResult(
+          ProbeTarget(name, Uri.parse('https://x.y')),
+          outcome ?? (ok ? ProbeOutcome.ok : ProbeOutcome.blocked),
+        );
 
     NetworkReport report(List<TargetResult> r) =>
         NetworkReport(checkedAt: DateTime(2026), targets: r, withZapret: true);
@@ -180,8 +209,15 @@ void main() {
     });
 
     test('два сервиса не открываются', () {
-      final r = report([t('DiscordMain', false), t('YouTubeWeb', false), t('GoogleMain', true)]);
-      expect(networkSummary(r, checking: false), 'Discord и YouTube не открываются');
+      final r = report([
+        t('DiscordMain', false),
+        t('YouTubeWeb', false),
+        t('GoogleMain', true),
+      ]);
+      expect(
+        networkSummary(r, checking: false),
+        'Discord и YouTube не открываются',
+      );
     });
 
     test('нет интернета', () {

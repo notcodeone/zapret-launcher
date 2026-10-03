@@ -73,19 +73,26 @@ class ZapretRunner {
 
   RuntimeStatus status() {
     final procs = [
-      for (final e in win.findProcesses('winws.exe')) WinwsProcess(e.pid, win.processImagePath(e.pid)),
+      for (final e in win.findProcesses('winws.exe'))
+        WinwsProcess(e.pid, win.processImagePath(e.pid)),
     ];
     final svc = win.queryService(serviceName);
     return RuntimeStatus(
       processes: procs,
       service: svc,
-      serviceStrategy: svc == null ? null : win.readRegistryString(_serviceRegKey, _serviceRegValue),
+      serviceStrategy: svc == null
+          ? null
+          : win.readRegistryString(_serviceRegKey, _serviceRegValue),
     );
   }
 
   /// Запуск winws.exe отдельным процессом. Работает до выключения
   /// или перезагрузки компьютера, даже если лаунчер закрыт.
-  Future<void> startProcess(ZapretInstall install, Strategy strategy, GameFilter filter) async {
+  Future<void> startProcess(
+    ZapretInstall install,
+    Strategy strategy,
+    GameFilter filter,
+  ) async {
     final args = await _prepare(install, strategy, filter);
     if (win.findProcesses('winws.exe').isNotEmpty) {
       throw const ZapretException('winws.exe уже запущен');
@@ -98,14 +105,23 @@ class ZapretRunner {
         mode: ProcessStartMode.detached,
       );
     } on ProcessException catch (e) {
-      throw ZapretException('Не удалось запустить winws.exe', detail: e.message);
+      throw ZapretException(
+        'Не удалось запустить winws.exe',
+        detail: e.message,
+      );
     }
     await _expectRunning();
     lastStart = DateTime.now();
   }
 
   /// Служба Windows с автозапуском — как «Install Service» в service.bat.
-  Future<void> installService(ZapretInstall install, Strategy strategy, GameFilter filter) async {
+  /// [start] false — только поставить: включится вместе с Windows или кнопкой.
+  Future<void> installService(
+    ZapretInstall install,
+    Strategy strategy,
+    GameFilter filter, {
+    bool start = true,
+  }) async {
     final args = await _prepare(install, strategy, filter);
     await removeService(cleanupDriver: false);
     try {
@@ -118,10 +134,11 @@ class ZapretRunner {
         restartOnFailure: true,
       );
       win.writeRegistryString(_serviceRegKey, _serviceRegValue, strategy.id);
-      win.startService(serviceName);
+      if (start) win.startService(serviceName);
     } on win.Win32Exception catch (e) {
       throw ZapretException(e.operation, detail: 'код ${e.code}');
     }
+    if (!start) return;
     await _expectRunning();
     lastStart = DateTime.now();
   }
@@ -152,11 +169,15 @@ class ZapretRunner {
       try {
         win.terminateProcess(e.pid);
       } on win.Win32Exception catch (err) {
-        throw ZapretException('Не удалось остановить winws.exe', detail: 'код ${err.code}');
+        throw ZapretException(
+          'Не удалось остановить winws.exe',
+          detail: 'код ${err.code}',
+        );
       }
     }
     final deadline = DateTime.now().add(const Duration(seconds: 5));
-    while (win.findProcesses('winws.exe').isNotEmpty && DateTime.now().isBefore(deadline)) {
+    while (win.findProcesses('winws.exe').isNotEmpty &&
+        DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 150));
     }
     if (win.findProcesses('winws.exe').isNotEmpty) {
@@ -194,7 +215,10 @@ class ZapretRunner {
         }
         win.deleteService(name);
       } on win.Win32Exception catch (e) {
-        throw ZapretException('Не удалось удалить службу $name', detail: 'код ${e.code}');
+        throw ZapretException(
+          'Не удалось удалить службу $name',
+          detail: 'код ${e.code}',
+        );
       }
     }
   }
@@ -220,8 +244,10 @@ class ZapretRunner {
   /// Подготовка перед запуском: файл winws.exe на месте, списки есть, TCP timestamps включены.
   void prepare(ZapretInstall install) {
     if (!install.winws.existsSync()) {
-      throw const ZapretException('Нет файла bin\\winws.exe',
-          detail: 'Его мог удалить антивирус. Переустановите zapret');
+      throw const ZapretException(
+        'Нет файла bin\\winws.exe',
+        detail: 'Его мог удалить антивирус. Переустановите zapret',
+      );
     }
     install.ensureUserLists();
     _enableTcpTimestamps();
@@ -229,12 +255,20 @@ class ZapretRunner {
 
   /// Быстрый запуск для подбора стратегии: ждёт только появления процесса.
   /// false — winws.exe не запустился или сразу закрылся.
-  Future<bool> startForProbe(ZapretInstall install, Strategy strategy, GameFilter filter) async {
+  Future<bool> startForProbe(
+    ZapretInstall install,
+    Strategy strategy,
+    GameFilter filter,
+  ) async {
     final List<String> args;
     try {
       args = await install.argsFor(strategy, filter);
-      await Process.start(install.winws.path, args,
-          workingDirectory: install.binDir, mode: ProcessStartMode.detached);
+      await Process.start(
+        install.winws.path,
+        args,
+        workingDirectory: install.binDir,
+        mode: ProcessStartMode.detached,
+      );
     } on FormatException {
       return false;
     } on ProcessException {
@@ -262,26 +296,38 @@ class ZapretRunner {
       }
     }
     final deadline = DateTime.now().add(const Duration(seconds: 3));
-    while (win.findProcesses('winws.exe').isNotEmpty && DateTime.now().isBefore(deadline)) {
+    while (win.findProcesses('winws.exe').isNotEmpty &&
+        DateTime.now().isBefore(deadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
   }
 
-  Future<List<String>> _prepare(ZapretInstall install, Strategy strategy, GameFilter filter) async {
+  Future<List<String>> _prepare(
+    ZapretInstall install,
+    Strategy strategy,
+    GameFilter filter,
+  ) async {
     prepare(install);
     try {
       return await install.argsFor(strategy, filter);
     } on FormatException catch (e) {
-      throw ZapretException('Не удалось прочитать стратегию ${strategy.title}', detail: e.message);
+      throw ZapretException(
+        'Не удалось прочитать стратегию ${strategy.title}',
+        detail: e.message,
+      );
     }
   }
 
   /// service.bat включает TCP timestamps перед каждым запуском — без них
   /// часть стратегий не работает.
   void _enableTcpTimestamps() {
-    Process.start('netsh', const ['interface', 'tcp', 'set', 'global', 'timestamps=enabled'],
-            mode: ProcessStartMode.detached)
-        .ignore();
+    Process.start('netsh', const [
+      'interface',
+      'tcp',
+      'set',
+      'global',
+      'timestamps=enabled',
+    ], mode: ProcessStartMode.detached).ignore();
   }
 
   Future<void> _expectRunning() async {

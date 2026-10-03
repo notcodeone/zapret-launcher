@@ -49,16 +49,16 @@ class AppController extends ChangeNotifier {
     HttpProber? prober,
     ZapretBundle? bundle,
     String? builtinZapretDir,
-  })  : _bundle = bundle ?? ZapretBundle.app(),
-        _builtinDir = builtinZapretDir ?? SettingsStore.defaultZapretDir(),
-        _autostart = launcherAutostart ?? const LauncherAutostart(),
-        _prober = prober ?? HttpProber(),
-        _isElevated = isElevated ?? win.isElevated,
-        _store = store ?? SettingsStore(),
-        _runner = runner ?? ZapretRunner(),
-        _releases = releases ?? ReleaseClient(),
-        _launcherUpdates = launcherUpdates ?? LauncherUpdates(),
-        _diagSystem = diagnosticsSystem ?? WindowsDiagnosticsSystem();
+  }) : _bundle = bundle ?? ZapretBundle.app(),
+       _builtinDir = builtinZapretDir ?? SettingsStore.defaultZapretDir(),
+       _autostart = launcherAutostart ?? const LauncherAutostart(),
+       _prober = prober ?? HttpProber(),
+       _isElevated = isElevated ?? win.isElevated,
+       _store = store ?? SettingsStore(),
+       _runner = runner ?? ZapretRunner(),
+       _releases = releases ?? ReleaseClient(),
+       _launcherUpdates = launcherUpdates ?? LauncherUpdates(),
+       _diagSystem = diagnosticsSystem ?? WindowsDiagnosticsSystem();
 
   final ToastController toasts;
   final SettingsStore _store;
@@ -75,7 +75,8 @@ class AppController extends ChangeNotifier {
   final String _builtinDir;
 
   /// Сторож сети; подменяется в тестах (без запросов страны и чтения адаптеров).
-  final NetworkGuard Function(GuardedZapret zapret, ProfileHook onNetwork)? _guardFactory;
+  final NetworkGuard Function(GuardedZapret zapret, ProfileHook onNetwork)?
+  _guardFactory;
   final bool _watchNetworkEvents;
   final _netWatch = WindowsNetworkWatch();
   final LauncherAutostart _autostart;
@@ -99,7 +100,10 @@ class AppController extends ChangeNotifier {
   /// Открывать лаунчер при входе в Windows — свёрнутым в трей, без запроса прав.
   Future<void> setLauncherAutostart(bool value) async {
     await _task(
-      HeaderStatus('autostart', value ? 'Добавляю в автозапуск…' : 'Убираю из автозапуска…'),
+      HeaderStatus(
+        'autostart',
+        value ? 'Добавляю в автозапуск…' : 'Убираю из автозапуска…',
+      ),
       () async {
         try {
           if (value) {
@@ -119,13 +123,17 @@ class AppController extends ChangeNotifier {
   late final NetworkGuard guard;
 
   /// Окружение подбора стратегии; null — настоящий winws.exe. Подменяется в тестах.
-  final ProbeEnvironment Function(ZapretInstall install, GameFilter filter)? _probeEnvironment;
+  final ProbeEnvironment Function(ZapretInstall install, GameFilter filter)?
+  _probeEnvironment;
 
   AppSettings _settings = const AppSettings();
   bool _elevated = false;
   ZapretInstall? _install;
-  RuntimeStatus _runtime =
-      const RuntimeStatus(processes: [], service: null, serviceStrategy: null);
+  RuntimeStatus _runtime = const RuntimeStatus(
+    processes: [],
+    service: null,
+    serviceStrategy: null,
+  );
   HeaderStatus? _busy;
   AppError? _error;
   ReleaseInfo? _latest;
@@ -203,7 +211,8 @@ class AppController extends ChangeNotifier {
   }
 
   /// Откуда zapret: встроенный в лаунчер (по умолчанию) или своя папка.
-  ZapretSource get zapretSource => _settings.zapretSource ?? ZapretSource.builtin;
+  ZapretSource get zapretSource =>
+      _settings.zapretSource ?? ZapretSource.builtin;
   bool get builtin => zapretSource == ZapretSource.builtin;
 
   /// Куда распаковывается встроенный zapret.
@@ -258,12 +267,19 @@ class AppController extends ChangeNotifier {
     }
     _readZapretSettings();
     _wantRunning = _runtime.running;
-    _poll = Timer.periodic(const Duration(seconds: 2), (_) => _refreshRuntime());
-    _networkTimer = Timer.periodic(const Duration(minutes: 10), (_) => checkNetwork());
+    _poll = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _refreshRuntime(),
+    );
+    _networkTimer = Timer.periodic(
+      const Duration(minutes: 10),
+      (_) => checkNetwork(),
+    );
     _scheduleNetworkCheck(const Duration(seconds: 1));
 
     final bridge = _GuardBridge(this);
-    guard = _guardFactory?.call(bridge, _onNetworkIdentified) ??
+    guard =
+        _guardFactory?.call(bridge, _onNetworkIdentified) ??
         NetworkGuard(
           zapret: bridge,
           // Без прав администратора zapret не выключить и не включить.
@@ -280,11 +296,16 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     // Раз в 6 часов — новые версии лаунчера и zapret. Первая проверка — когда
     // встроенный zapret готов: иначе обновление с GitHub обгонит распаковку.
-    _updateTimer = Timer.periodic(const Duration(hours: 6), (_) => _periodicUpdateCheck());
+    _updateTimer = Timer.periodic(
+      const Duration(hours: 6),
+      (_) => _periodicUpdateCheck(),
+    );
     _prepared = _prepareBuiltin();
-    unawaited(_prepared.whenComplete(() {
-      if (_settings.autoCheckUpdates) return _periodicUpdateCheck();
-    }));
+    unawaited(
+      _prepared.whenComplete(() {
+        if (_settings.autoCheckUpdates) return _periodicUpdateCheck();
+      }),
+    );
     unawaited(refreshLauncherAutostart());
   }
 
@@ -301,10 +322,14 @@ class AppController extends ChangeNotifier {
         break;
       }
     }
-    _saveSettings(_settings.copyWith(
-      zapretSource: custom == null ? ZapretSource.builtin : ZapretSource.custom,
-      zapretDir: custom,
-    ));
+    _saveSettings(
+      _settings.copyWith(
+        zapretSource: custom == null
+            ? ZapretSource.builtin
+            : ZapretSource.custom,
+        zapretDir: custom,
+      ),
+    );
   }
 
   /// Встроенный zapret — в своей папке, своя — в выбранной.
@@ -328,7 +353,10 @@ class AppController extends ChangeNotifier {
       return;
     }
     if (!_newerThanInstalled(bundled)) return;
-    if (!_settings.autoUpdateZapret || bundled == _settings.skippedZapretVersion) return;
+    if (!_settings.autoUpdateZapret ||
+        bundled == _settings.skippedZapretVersion) {
+      return;
+    }
     await _autoUpdate(bundled, () => installBundled(auto: true));
   }
 
@@ -357,7 +385,9 @@ class AppController extends ChangeNotifier {
     final s = strategy;
     if (inst == null || s == null || _busy != null) return;
     final now = DateTime.now();
-    _watchdogRestarts.removeWhere((t) => now.difference(t) > const Duration(minutes: 5));
+    _watchdogRestarts.removeWhere(
+      (t) => now.difference(t) > const Duration(minutes: 5),
+    );
     if (_watchdogRestarts.length >= 3) {
       _wantRunning = false;
       _error = const AppError(
@@ -365,21 +395,35 @@ class AppController extends ChangeNotifier {
         'Лаунчер перезапустил его 3 раза за 5 минут и перестал. Возможно, его закрывает '
             'антивирус — загляните в диагностику.',
       );
-      onBackgroundNotice?.call('Zapret не работает', 'winws.exe закрывается снова и снова — откройте лаунчер.');
+      onBackgroundNotice?.call(
+        'Zapret не работает',
+        'winws.exe закрывается снова и снова — откройте лаунчер.',
+      );
       notifyListeners();
       return;
     }
     _watchdogRestarts.add(now);
-    final ok = await _task(const HeaderStatus('watchdog', 'winws.exe закрылся — запускаю снова…'), () async {
-      if (_runner.status().serviceInstalled) {
-        await _runner.startService();
-      } else {
-        await _runner.startProcess(inst, s, _gameFilter);
-      }
-    });
+    final ok = await _task(
+      const HeaderStatus('watchdog', 'winws.exe закрылся — запускаю снова…'),
+      () async {
+        if (_runner.status().serviceInstalled) {
+          await _runner.startService();
+        } else {
+          await _runner.startProcess(inst, s, _gameFilter);
+        }
+      },
+    );
     if (ok) {
-      toasts.show(const ToastData('winws.exe закрылся — запустил снова', icon: LucideIcons.rotateCw));
-      onBackgroundNotice?.call('Zapret перезапущен', 'winws.exe закрылся сам — лаунчер запустил его снова.');
+      toasts.show(
+        const ToastData(
+          'winws.exe закрылся — запустил снова',
+          icon: LucideIcons.rotateCw,
+        ),
+      );
+      onBackgroundNotice?.call(
+        'Zapret перезапущен',
+        'winws.exe закрылся сам — лаунчер запустил его снова.',
+      );
     }
   }
 
@@ -441,7 +485,8 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void markTrayHintShown() => _saveSettings(_settings.copyWith(trayHintShown: true));
+  void markTrayHintShown() =>
+      _saveSettings(_settings.copyWith(trayHintShown: true));
 
   void setNetworkGuard(bool value) {
     _saveSettings(_settings.copyWith(networkGuard: value));
@@ -469,7 +514,8 @@ class AppController extends ChangeNotifier {
   }
 
   /// Профиль сети, в которой компьютер сейчас.
-  NetworkProfile? get currentProfile => profilesEnabled ? profileFor(guard.asn) : null;
+  NetworkProfile? get currentProfile =>
+      profilesEnabled ? profileFor(guard.asn) : null;
 
   /// Как назвать текущую сеть: имя профиля или провайдер.
   String? get currentNetworkName {
@@ -489,7 +535,11 @@ class AppController extends ChangeNotifier {
 
   void setProfilesEnabled(bool value) {
     _saveSettings(_settings.copyWith(profilesEnabled: value));
-    if (value) unawaited(guard.checkProvider(force: true).then((_) => notifyListeners()));
+    if (value) {
+      unawaited(
+        guard.checkProvider(force: true).then((_) => notifyListeners()),
+      );
+    }
     notifyListeners();
   }
 
@@ -507,16 +557,23 @@ class AppController extends ChangeNotifier {
     final asn = guard.asn;
     if (!profilesEnabled || asn == null) return;
     final now = DateTime.now();
-    final base = profileFor(asn) ??
-        NetworkProfile(asn: asn, name: providerShortName(guard.isp, asn), lastSeen: now);
-    _upsertProfile(base.copyWith(
-      isp: guard.isp,
-      country: guard.country,
-      strategy: _settings.strategy ?? strategy?.id,
-      gameFilter: _gameFilter.mode,
-      ipset: _ipsetMode,
-      lastSeen: now,
-    ));
+    final base =
+        profileFor(asn) ??
+        NetworkProfile(
+          asn: asn,
+          name: providerShortName(guard.isp, asn),
+          lastSeen: now,
+        );
+    _upsertProfile(
+      base.copyWith(
+        isp: guard.isp,
+        country: guard.country,
+        strategy: _settings.strategy ?? strategy?.id,
+        gameFilter: _gameFilter.mode,
+        ipset: _ipsetMode,
+        lastSeen: now,
+      ),
+    );
     notifyListeners();
   }
 
@@ -538,7 +595,9 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     // Отметили сеть, в которой компьютер сейчас, — zapret выключается (или возвращается) сразу.
     if (asn == guard.asn) {
-      unawaited(value ? guard.currentProfileOff(p.name) : guard.currentProfileOn());
+      unawaited(
+        value ? guard.currentProfileOff(p.name) : guard.currentProfileOn(),
+      );
     }
   }
 
@@ -552,10 +611,14 @@ class AppController extends ChangeNotifier {
   }
 
   void deleteProfile(String asn) {
-    _saveSettings(_settings.copyWith(profiles: [
-      for (final p in profiles)
-        if (p.asn != asn) p,
-    ]));
+    _saveSettings(
+      _settings.copyWith(
+        profiles: [
+          for (final p in profiles)
+            if (p.asn != asn) p,
+        ],
+      ),
+    );
     notifyListeners();
   }
 
@@ -572,9 +635,15 @@ class AppController extends ChangeNotifier {
       notifyListeners();
       return none;
     }
-    profile = profile.copyWith(lastSeen: DateTime.now(), isp: guard.isp, country: guard.country);
+    profile = profile.copyWith(
+      lastSeen: DateTime.now(),
+      isp: guard.isp,
+      country: guard.country,
+    );
     _upsertProfile(profile);
-    if (profile.zapretOff) return (decision: ProfileDecision.zapretOff, network: profile.name);
+    if (profile.zapretOff) {
+      return (decision: ProfileDecision.zapretOff, network: profile.name);
+    }
     // При запуске лаунчера работающий zapret не трогаем.
     if (startup && running) return none;
 
@@ -605,9 +674,15 @@ class AppController extends ChangeNotifier {
     if (changed && !startup) {
       final title = 'Сеть «${profile.name}»: стратегия «${strategy?.title}»';
       toasts.show(ToastData(title, icon: LucideIcons.router));
-      onBackgroundNotice?.call(title, 'Лаунчер переключил настройки zapret под эту сеть.');
+      onBackgroundNotice?.call(
+        title,
+        'Лаунчер переключил настройки zapret под эту сеть.',
+      );
     }
-    return (decision: changed ? ProfileDecision.changed : ProfileDecision.none, network: profile.name);
+    return (
+      decision: changed ? ProfileDecision.changed : ProfileDecision.none,
+      network: profile.name,
+    );
   }
 
   /// Выход: подбор стратегии останавливается, и zapret возвращается как был.
@@ -632,11 +707,14 @@ class AppController extends ChangeNotifier {
     // Состояние обхода поменялось — проверяем, открываются ли сайты теперь.
     void recheck() {
       final strategyNow = _runtime.serviceStrategy ?? _settings.strategy;
-      if (running != wasRunning || (running && strategyNow != strategyBefore) ||
-          status.kind == 'restart' || status.kind == 'probe') {
+      if (running != wasRunning ||
+          (running && strategyNow != strategyBefore) ||
+          status.kind == 'restart' ||
+          status.kind == 'probe') {
         _scheduleNetworkCheck(const Duration(seconds: 2));
       }
     }
+
     try {
       await body();
       return true;
@@ -649,11 +727,20 @@ class AppController extends ChangeNotifier {
     } on win.Win32Exception catch (e) {
       _error = AppError(e.operation, 'Код ошибки Windows ${e.code}');
     } on FileSystemException catch (e) {
-      _error = AppError('Не удалось изменить файлы zapret', e.osError?.message ?? e.message);
+      _error = AppError(
+        'Не удалось изменить файлы zapret',
+        e.osError?.message ?? e.message,
+      );
     } on SocketException {
-      _error = const AppError('Нет связи с GitHub', 'Проверьте интернет и попробуйте ещё раз');
+      _error = const AppError(
+        'Нет связи с GitHub',
+        'Проверьте интернет и попробуйте ещё раз',
+      );
     } on TimeoutException {
-      _error = const AppError('GitHub не ответил вовремя', 'Попробуйте ещё раз');
+      _error = const AppError(
+        'GitHub не ответил вовремя',
+        'Попробуйте ещё раз',
+      );
     } on Object catch (e) {
       _error = AppError('Что-то пошло не так', e.toString());
     } finally {
@@ -681,7 +768,9 @@ class AppController extends ChangeNotifier {
   Future<void> checkNetwork() {
     // Во время подбора и перезапусков результат ничего не скажет.
     if (_busy != null) return Future.value();
-    return _networkCheck ??= _doCheckNetwork().whenComplete(() => _networkCheck = null);
+    return _networkCheck ??= _doCheckNetwork().whenComplete(
+      () => _networkCheck = null,
+    );
   }
 
   Future<void> _doCheckNetwork() async {
@@ -689,7 +778,9 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     try {
       final targets = probeTargets;
-      final results = await Future.wait([for (final t in targets) _prober.check(t)]);
+      final results = await Future.wait([
+        for (final t in targets) _prober.check(t),
+      ]);
       final withZapret = running;
       _network = NetworkReport(
         checkedAt: DateTime.now(),
@@ -717,7 +808,11 @@ class AppController extends ChangeNotifier {
       } on Object {
         // Без репозитория просто не проверим записи hosts.
       }
-      _diagnostics = diagnose(_diagSystem, install: _install, repoHosts: repoHosts);
+      _diagnostics = diagnose(
+        _diagSystem,
+        install: _install,
+        repoHosts: repoHosts,
+      );
     } finally {
       _diagnosing = false;
       notifyListeners();
@@ -737,23 +832,34 @@ class AppController extends ChangeNotifier {
           try {
             win.startService(service);
           } on win.Win32Exception catch (e) {
-            throw ZapretException('Не удалось запустить службу $service', detail: 'код ${e.code}');
+            throw ZapretException(
+              'Не удалось запустить службу $service',
+              detail: 'код ${e.code}',
+            );
           }
         });
       case UnloadDriverFix():
-        await _task(const HeaderStatus('fix', 'Выгружаю WinDivert…'), _runner.unloadDriver);
+        await _task(
+          const HeaderStatus('fix', 'Выгружаю WinDivert…'),
+          _runner.unloadDriver,
+        );
       case RemoveServicesFix(:final services):
-        await _task(const HeaderStatus('fix', 'Удаляю другие обходы…'), () async {
-          await _runner.removeServices(services);
-          await _runner.unloadDriver();
-        });
+        await _task(
+          const HeaderStatus('fix', 'Удаляю другие обходы…'),
+          () async {
+            await _runner.removeServices(services);
+            await _runner.unloadDriver();
+          },
+        );
       case HostsBlockFix(:final content):
         await _task(const HeaderStatus('fix', 'Обновляю hosts…'), () async {
           final file = File(hostsPath);
           final current = await file.readAsString();
           await file.copy('$hostsPath.zapret-launcher.bak');
           await file.writeAsString(mergeHostsBlock(current, content));
-          toasts.show(const ToastData('Адреса для Telegram и Discord добавлены в hosts'));
+          toasts.show(
+            const ToastData('Адреса для Telegram и Discord добавлены в hosts'),
+          );
         });
     }
     await runDiagnostics();
@@ -763,7 +869,9 @@ class AppController extends ChangeNotifier {
   Future<void> clearDiscordCache() async {
     await _task(const HeaderStatus('fix', 'Очищаю кэш Discord…'), () async {
       final appData = Platform.environment['APPDATA'];
-      if (appData == null) throw const ZapretException('Не найдена папка APPDATA');
+      if (appData == null) {
+        throw const ZapretException('Не найдена папка APPDATA');
+      }
       var found = false;
       final failed = <String>[];
       for (final (exe, folder) in discordInstalls) {
@@ -787,9 +895,17 @@ class AppController extends ChangeNotifier {
           }
         }
       }
-      if (!found) throw const ZapretException('Discord не найден', detail: 'Нет папок Discord в APPDATA');
+      if (!found) {
+        throw const ZapretException(
+          'Discord не найден',
+          detail: 'Нет папок Discord в APPDATA',
+        );
+      }
       if (failed.isNotEmpty) {
-        throw ZapretException('Часть кэша Discord не удалилась', detail: failed.join(', '));
+        throw ZapretException(
+          'Часть кэша Discord не удалилась',
+          detail: failed.join(', '),
+        );
       }
       toasts.show(const ToastData('Кэш Discord очищен'));
     });
@@ -840,7 +956,10 @@ class AppController extends ChangeNotifier {
     try {
       writeUserList(inst.listsDir, list);
     } on FileSystemException catch (e) {
-      _error = AppError('Не удалось сохранить список', e.osError?.message ?? e.message);
+      _error = AppError(
+        'Не удалось сохранить список',
+        e.osError?.message ?? e.message,
+      );
       notifyListeners();
       return false;
     }
@@ -851,30 +970,45 @@ class AppController extends ChangeNotifier {
   }
 
   /// Добавляет записи из ввода. Возвращает, сколько добавилось и сколько уже было.
-  (int added, int existing) addEntries(UserListKind kind, List<String> entries) {
+  (int added, int existing) addEntries(
+    UserListKind kind,
+    List<String> entries,
+  ) {
     final list = userList(kind);
     final known = {for (final e in list.entries) e.toLowerCase()};
-    final fresh = [for (final e in entries) if (!known.contains(e.toLowerCase())) e];
+    final fresh = [
+      for (final e in entries)
+        if (!known.contains(e.toLowerCase())) e,
+    ];
     if (fresh.isEmpty) return (0, entries.length);
     // Новые — сверху: их сразу видно.
-    if (!_saveList(list.withEntries([...fresh, ...list.entries]))) return (0, 0);
+    if (!_saveList(list.withEntries([...fresh, ...list.entries]))) {
+      return (0, 0);
+    }
     return (fresh.length, entries.length - fresh.length);
   }
 
   void removeEntry(UserListKind kind, String entry) {
     final list = userList(kind);
-    _saveList(list.withEntries([for (final e in list.entries) if (e != entry) e]));
+    _saveList(
+      list.withEntries([
+        for (final e in list.entries)
+          if (e != entry) e,
+      ]),
+    );
   }
 
   /// Вернуть удалённую запись на прежнее место — для «Вернуть» в оповещении.
   void restoreEntry(UserListKind kind, String entry, int index) {
     final list = userList(kind);
     if (list.entries.contains(entry)) return;
-    final entries = [...list.entries]..insert(index.clamp(0, list.entries.length), entry);
+    final entries = [...list.entries]
+      ..insert(index.clamp(0, list.entries.length), entry);
     _saveList(list.withEntries(entries));
   }
 
-  void clearList(UserListKind kind) => _saveList(userList(kind).withEntries(const []));
+  void clearList(UserListKind kind) =>
+      _saveList(userList(kind).withEntries(const []));
 
   /// Импорт из текстового файла: домены по строкам, ссылки, строки hosts.
   void importList(UserListKind kind) {
@@ -884,7 +1018,10 @@ class AppController extends ChangeNotifier {
     try {
       text = decodeText(File(path).readAsBytesSync());
     } on FileSystemException catch (e) {
-      _error = AppError('Не удалось прочитать файл', e.osError?.message ?? e.message);
+      _error = AppError(
+        'Не удалось прочитать файл',
+        e.osError?.message ?? e.message,
+      );
       notifyListeners();
       return;
     }
@@ -893,20 +1030,24 @@ class AppController extends ChangeNotifier {
     if (parsed.entries.isEmpty) {
       _error = AppError(
         'В файле $name нет ${kind.ip ? 'IP-адресов' : 'доменов'}',
-        parsed.invalid.isEmpty ? null : 'Не удалось разобрать: ${parsed.invalid.take(5).join(', ')}',
+        parsed.invalid.isEmpty
+            ? null
+            : 'Не удалось разобрать: ${parsed.invalid.take(5).join(', ')}',
       );
       notifyListeners();
       return;
     }
     final (added, existing) = addEntries(kind, parsed.entries);
     final skipped = parsed.invalid.length;
-    toasts.show(ToastData(
-      added == 0
-          ? 'Всё из $name уже есть в списке'
-          : 'Добавлено $added из $name${existing > 0 ? ', уже были $existing' : ''}'
-              '${skipped > 0 ? ', пропущено $skipped' : ''}',
-      icon: LucideIcons.fileDown,
-    ));
+    toasts.show(
+      ToastData(
+        added == 0
+            ? 'Всё из $name уже есть в списке'
+            : 'Добавлено $added из $name${existing > 0 ? ', уже были $existing' : ''}'
+                  '${skipped > 0 ? ', пропущено $skipped' : ''}',
+        icon: LucideIcons.fileDown,
+      ),
+    );
   }
 
   /// Экспорт в текстовый файл — его можно импортировать на другом компьютере.
@@ -922,12 +1063,19 @@ class AppController extends ChangeNotifier {
     try {
       File(path).writeAsStringSync(exportText(list));
     } on FileSystemException catch (e) {
-      _error = AppError('Не удалось сохранить файл', e.osError?.message ?? e.message);
+      _error = AppError(
+        'Не удалось сохранить файл',
+        e.osError?.message ?? e.message,
+      );
       notifyListeners();
       return;
     }
-    toasts.show(ToastData('Список сохранён: ${list.entries.length} записей',
-        icon: LucideIcons.fileUp));
+    toasts.show(
+      ToastData(
+        'Список сохранён: ${list.entries.length} записей',
+        icon: LucideIcons.fileUp,
+      ),
+    );
   }
 
   /// Перезапуск, чтобы winws.exe перечитал списки.
@@ -937,13 +1085,18 @@ class AppController extends ChangeNotifier {
   Future<void> updateIpsetList() async {
     final inst = _install;
     if (inst == null) return;
-    final ok = await _task(const HeaderStatus('ipset', 'Скачиваю список адресов…'), () async {
-      inst.storeIpsetList(await _releases.fetchIpsetList());
-    });
+    final ok = await _task(
+      const HeaderStatus('ipset', 'Скачиваю список адресов…'),
+      () async {
+        inst.storeIpsetList(await _releases.fetchIpsetList());
+      },
+    );
     _ipsetMode = inst.readIpsetMode();
     if (ok) {
       toasts.show(const ToastData('Список адресов IPSet обновлён'));
-      if (_ipsetMode == IpsetMode.loaded) await _restartIfRunning('Применяю новый список…');
+      if (_ipsetMode == IpsetMode.loaded) {
+        await _restartIfRunning('Применяю новый список…');
+      }
     }
   }
 
@@ -958,7 +1111,10 @@ class AppController extends ChangeNotifier {
     final inst = _install;
     final s = strategy;
     if (inst == null || s == null) return;
-    final ok = await _task(HeaderStatus('start', 'Запускаю «${s.title}»…'), () => _startWith(inst, s));
+    final ok = await _task(
+      HeaderStatus('start', 'Запускаю «${s.title}»…'),
+      () => _startWith(inst, s),
+    );
     // Включили сами — сторож сети запоминает страну и больше не спорит,
     // а профиль сети — с какими настройками здесь работает zapret.
     if (ok) {
@@ -978,7 +1134,10 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> stop() async {
-    final ok = await _task(const HeaderStatus('stop', 'Останавливаю…'), _runner.stopAll);
+    final ok = await _task(
+      const HeaderStatus('stop', 'Останавливаю…'),
+      _runner.stopAll,
+    );
     // Выключили сами — сторож сети не включит zapret обратно.
     if (ok) guard.userStopped();
   }
@@ -990,10 +1149,15 @@ class AppController extends ChangeNotifier {
         if (t.group == 'Discord' || t.group == 'YouTube') t,
     ];
     if (targets.isEmpty || _busy != null) return null;
-    _busy = const HeaderStatus('guard', 'Сеть сменилась — проверяю, нужен ли обход…');
+    _busy = const HeaderStatus(
+      'guard',
+      'Сеть сменилась — проверяю, нужен ли обход…',
+    );
     notifyListeners();
     try {
-      final results = await Future.wait([for (final t in targets) _prober.check(t)]);
+      final results = await Future.wait([
+        for (final t in targets) _prober.check(t),
+      ]);
       if (results.every((r) => r.outcome == ProbeOutcome.noHost)) return null;
       return results.every((r) => r.ok);
     } finally {
@@ -1021,16 +1185,44 @@ class AppController extends ChangeNotifier {
     await _restartIfRunning('Перезапускаю с «${s.title}»…');
   }
 
-  /// Автозапуск вместе с Windows — это служба zapret.
+  /// Как запускать zapret ещё не спрашивали — спросим при первом включении.
+  /// Если служба уже стоит (например, от service.bat), ответ известен.
+  bool get needsRunModeChoice => !_settings.runModeAsked && !autostart;
+
+  /// Первое включение: пользователь выбрал, как запускать zapret.
+  Future<void> startFirstTime({required bool service}) async {
+    _saveSettings(_settings.copyWith(runModeAsked: true));
+    notifyListeners();
+    if (!service) return start();
+    final inst = _install;
+    final s = strategy;
+    if (inst == null || s == null) return;
+    final ok = await _task(
+      HeaderStatus('start', 'Ставлю службу и запускаю «${s.title}»…'),
+      () async {
+        await _runner.stopAll();
+        await _runner.installService(inst, s, _gameFilter);
+      },
+    );
+    if (ok) {
+      guard.userStarted();
+      _rememberForNetwork();
+    }
+  }
+
+  /// Как запускать zapret: службой Windows (включается вместе с системой и работает
+  /// без лаунчера) или как general.bat — процессом до перезагрузки. Выключенный
+  /// zapret смена способа не включает.
   Future<void> setAutostart(bool value) async {
     final inst = _install;
     final s = strategy;
     if (inst == null || s == null) return;
+    _saveSettings(_settings.copyWith(runModeAsked: true));
     final wasRunning = running;
     if (value) {
       await _task(const HeaderStatus('service', 'Ставлю службу…'), () async {
         await _runner.stopAll();
-        await _runner.installService(inst, s, _gameFilter);
+        await _runner.installService(inst, s, _gameFilter, start: wasRunning);
       });
     } else {
       await _task(const HeaderStatus('service', 'Убираю службу…'), () async {
@@ -1048,7 +1240,10 @@ class AppController extends ChangeNotifier {
     try {
       inst.writeGameFilter(_gameFilter);
     } on FileSystemException catch (e) {
-      _error = AppError('Не удалось сохранить игровой фильтр', e.osError?.message);
+      _error = AppError(
+        'Не удалось сохранить игровой фильтр',
+        e.osError?.message,
+      );
     }
     _rememberForNetwork();
     notifyListeners();
@@ -1058,13 +1253,16 @@ class AppController extends ChangeNotifier {
   Future<void> setIpsetMode(IpsetMode mode) async {
     final inst = _install;
     if (inst == null || mode == _ipsetMode) return;
-    final ok = await _task(const HeaderStatus('ipset', 'Меняю режим IPSet…'), () async {
-      if (!inst.setIpsetMode(mode)) {
-        // Резервной копии списка нет — скачиваем свежий.
-        _setBusyText(const HeaderStatus('ipset', 'Скачиваю список адресов…'));
-        inst.writeIpsetList(await _releases.fetchIpsetList());
-      }
-    });
+    final ok = await _task(
+      const HeaderStatus('ipset', 'Меняю режим IPSet…'),
+      () async {
+        if (!inst.setIpsetMode(mode)) {
+          // Резервной копии списка нет — скачиваем свежий.
+          _setBusyText(const HeaderStatus('ipset', 'Скачиваю список адресов…'));
+          inst.writeIpsetList(await _releases.fetchIpsetList());
+        }
+      },
+    );
     _ipsetMode = inst.readIpsetMode();
     if (ok) _rememberForNetwork();
     notifyListeners();
@@ -1110,18 +1308,28 @@ class AppController extends ChangeNotifier {
       _launcherChecked = true;
       if (launcherUpdateAvailable && !had) {
         // Что нового — в настройках («Что нового»); в оповещении одно действие.
-        toasts.show(ToastData.update(
-          'Вышел ${AppInfo.name} ${_launcherLatest!.version}',
-          actionLabel: 'Обновить',
-          onAction: updateLauncher,
-        ));
+        toasts.show(
+          ToastData.update(
+            'Вышел ${AppInfo.name} ${_launcherLatest!.version}',
+            actionLabel: 'Обновить',
+            onAction: updateLauncher,
+          ),
+        );
       } else if (!silent && !launcherUpdateAvailable) {
-        toasts.show(ToastData('Установлена последняя версия лаунчера — ${AppInfo.version}'));
+        toasts.show(
+          ToastData(
+            'Установлена последняя версия лаунчера — ${AppInfo.version}',
+          ),
+        );
       }
     } on Object catch (e) {
       if (!silent) {
-        _error = AppError('Не удалось проверить обновления лаунчера',
-            e is LauncherUpdateException ? e.message : 'Проверьте интернет и попробуйте ещё раз');
+        _error = AppError(
+          'Не удалось проверить обновления лаунчера',
+          e is LauncherUpdateException
+              ? e.message
+              : 'Проверьте интернет и попробуйте ещё раз',
+        );
       }
     } finally {
       _checkingLauncher = false;
@@ -1131,7 +1339,9 @@ class AppController extends ChangeNotifier {
 
   /// Описание выпуска лаунчера на GitHub — раздел версии из CHANGELOG.md.
   void openLauncherReleasePage() {
-    final url = _launcherLatest?.pageUrl.toString() ?? 'https://github.com/$launcherRepo/releases/latest';
+    final url =
+        _launcherLatest?.pageUrl.toString() ??
+        'https://github.com/$launcherRepo/releases/latest';
     win.shellExecute(url);
   }
 
@@ -1145,29 +1355,48 @@ class AppController extends ChangeNotifier {
   /// установщик дождётся закрытия, поставит версию поверх и запустит её.
   /// Zapret при этом не останавливается — он работает отдельно от лаунчера.
   Future<void> updateLauncher() async {
-    final ok = await _task(const HeaderStatus('launcher', 'Проверяю версию лаунчера…'), () async {
-      final release = await _launcherUpdates.latest();
-      _launcherLatest = release;
-      _launcherChecked = true;
-      if (release == null || compareVersions(release.version, AppInfo.version) <= 0) {
-        throw const LauncherUpdateException('Установлена последняя версия лаунчера');
-      }
-      final label = 'Скачиваю ${AppInfo.name} ${release.version}';
-      _setBusyText(HeaderStatus('launcher', '$label…'));
-      final installer = await _launcherUpdates.download(release, onProgress: (v) {
-        if (v != null) _setBusyText(HeaderStatus('launcher', '$label — ${(v * 100).round()}%'));
-      });
-      _setBusyText(HeaderStatus('launcher', 'Запускаю установку ${release.version}…'));
-      // Установленную копию обновляем тихо; сборку из исходников — мастером, чтобы было видно куда.
-      final silent = isInstalledCopy(launcherPath);
-      final started = win.shellExecute(
-        installer.path,
-        parameters: silent ? '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /UPDATE=1' : null,
-      );
-      if (!started) {
-        throw const LauncherUpdateException('Установщик не запустился: Windows отклонила запуск');
-      }
-    });
+    final ok = await _task(
+      const HeaderStatus('launcher', 'Проверяю версию лаунчера…'),
+      () async {
+        final release = await _launcherUpdates.latest();
+        _launcherLatest = release;
+        _launcherChecked = true;
+        if (release == null ||
+            compareVersions(release.version, AppInfo.version) <= 0) {
+          throw const LauncherUpdateException(
+            'Установлена последняя версия лаунчера',
+          );
+        }
+        final label = 'Скачиваю ${AppInfo.name} ${release.version}';
+        _setBusyText(HeaderStatus('launcher', '$label…'));
+        final installer = await _launcherUpdates.download(
+          release,
+          onProgress: (v) {
+            if (v != null) {
+              _setBusyText(
+                HeaderStatus('launcher', '$label — ${(v * 100).round()}%'),
+              );
+            }
+          },
+        );
+        _setBusyText(
+          HeaderStatus('launcher', 'Запускаю установку ${release.version}…'),
+        );
+        // Установленную копию обновляем тихо; сборку из исходников — мастером, чтобы было видно куда.
+        final silent = isInstalledCopy(launcherPath);
+        final started = win.shellExecute(
+          installer.path,
+          parameters: silent
+              ? '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /UPDATE=1'
+              : null,
+        );
+        if (!started) {
+          throw const LauncherUpdateException(
+            'Установщик не запустился: Windows отклонила запуск',
+          );
+        }
+      },
+    );
     if (!ok) return;
     final quit = quitHandler;
     if (quit != null) await quit();
@@ -1184,22 +1413,37 @@ class AppController extends ChangeNotifier {
       final fresh = _newerThanInstalled(_latest!.version);
       final skipped = _latest!.version == _settings.skippedZapretVersion;
       // Сам лаунчер обновляет только встроенный zapret: своя папка — забота её хозяина.
-      if (fresh && silent && builtin && _settings.autoUpdateZapret && !skipped && _elevated) {
+      if (fresh &&
+          silent &&
+          builtin &&
+          _settings.autoUpdateZapret &&
+          !skipped &&
+          _elevated) {
         // Ставим сами — после того как проверка закончится.
         autoUpdate = true;
       } else if (fresh && !hadUpdate) {
-        toasts.show(ToastData.update(
-          'Вышел zapret ${_latest!.version}',
-          actionLabel: 'Обновить',
-          onAction: updateZapret,
-        ));
+        toasts.show(
+          ToastData.update(
+            'Вышел zapret ${_latest!.version}',
+            actionLabel: 'Обновить',
+            onAction: updateZapret,
+          ),
+        );
       } else if (!silent && !updateAvailable && _install != null) {
-        toasts.show(ToastData('Установлена последняя версия zapret — ${_install!.version}'));
+        toasts.show(
+          ToastData(
+            'Установлена последняя версия zapret — ${_install!.version}',
+          ),
+        );
       }
     } on Object catch (e) {
       if (!silent) {
-        _error = AppError('Не удалось проверить обновления',
-            e is ReleaseException ? e.message : 'Проверьте интернет и попробуйте ещё раз');
+        _error = AppError(
+          'Не удалось проверить обновления',
+          e is ReleaseException
+              ? e.message
+              : 'Проверьте интернет и попробуйте ещё раз',
+        );
       }
     } finally {
       _checkingUpdates = false;
@@ -1212,7 +1456,9 @@ class AppController extends ChangeNotifier {
   Future<bool> updateZapret() {
     final b = builtin ? _bundle.version : null;
     final newest = newestZapretVersion;
-    if (b != null && newest != null && compareVersions(b, newest) >= 0) return installBundled();
+    if (b != null && newest != null && compareVersions(b, newest) >= 0) {
+      return installBundled();
+    }
     return installLatest();
   }
 
@@ -1221,7 +1467,9 @@ class AppController extends ChangeNotifier {
   Future<bool> reinstallZapret() {
     final b = builtin ? _bundle.version : null;
     final v = _install?.version;
-    if (b != null && (v == null || compareVersions(b, v) >= 0)) return installBundled();
+    if (b != null && (v == null || compareVersions(b, v) >= 0)) {
+      return installBundled();
+    }
     return installLatest();
   }
 
@@ -1232,23 +1480,36 @@ class AppController extends ChangeNotifier {
     if (version == null) return false;
     final firstInstall = ZapretInstall.open(_builtinDir) == null;
     final ok = await _task(
-      HeaderStatus('install', firstInstall ? 'Распаковываю zapret $version…' : 'Ставлю zapret $version…'),
+      HeaderStatus(
+        'install',
+        firstInstall
+            ? 'Распаковываю zapret $version…'
+            : 'Ставлю zapret $version…',
+      ),
       () async {
         final zip = await _bundle.copyZip();
-        await _replaceZapret(_builtinDir, () => installFromZip(zip, Directory(_builtinDir)));
+        await _replaceZapret(
+          _builtinDir,
+          () => installFromZip(zip, Directory(_builtinDir)),
+        );
       },
     );
     if (ok) {
-      toasts.show(ToastData(
-        firstInstall
-            ? 'Zapret $version готов к работе'
-            : auto
-                ? 'Zapret обновился вместе с лаунчером до $version'
-                : 'Zapret обновлён до $version',
-        icon: firstInstall ? LucideIcons.packageCheck : LucideIcons.download,
-      ));
+      toasts.show(
+        ToastData(
+          firstInstall
+              ? 'Zapret $version готов к работе'
+              : auto
+              ? 'Zapret обновился вместе с лаунчером до $version'
+              : 'Zapret обновлён до $version',
+          icon: firstInstall ? LucideIcons.packageCheck : LucideIcons.download,
+        ),
+      );
       if (auto) {
-        onBackgroundNotice?.call('Zapret обновлён до $version', 'Новая версия пришла вместе с лаунчером.');
+        onBackgroundNotice?.call(
+          'Zapret обновлён до $version',
+          'Новая версия пришла вместе с лаунчером.',
+        );
       }
     }
     return ok;
@@ -1259,32 +1520,56 @@ class AppController extends ChangeNotifier {
   Future<bool> installLatest({bool auto = false}) async {
     final firstInstall = _install == null;
     // Своя папка обновляется на месте; если её нет — zapret встанет как встроенный.
-    final targetPath = builtin ? _builtinDir : _install?.root.path ?? _builtinDir;
+    final targetPath = builtin
+        ? _builtinDir
+        : _install?.root.path ?? _builtinDir;
     String? installed;
-    final ok = await _task(const HeaderStatus('update', 'Проверяю версию zapret…'), () async {
-      final release = await _releases.latest();
-      _latest = release;
-      final label = 'Скачиваю zapret ${release.version}';
-      _setBusyText(HeaderStatus('download', '$label…'));
-      final zip = await _releases.download(release, onProgress: (v) {
-        if (v != null) _setBusyText(HeaderStatus('download', '$label — ${(v * 100).round()}%'));
-      });
-      _setBusyText(HeaderStatus('install', 'Устанавливаю zapret ${release.version}…'));
-      await _replaceZapret(targetPath, () => installFromZip(zip, Directory(targetPath)));
-      installed = release.version;
-    });
+    final ok = await _task(
+      const HeaderStatus('update', 'Проверяю версию zapret…'),
+      () async {
+        final release = await _releases.latest();
+        _latest = release;
+        final label = 'Скачиваю zapret ${release.version}';
+        _setBusyText(HeaderStatus('download', '$label…'));
+        final zip = await _releases.download(
+          release,
+          onProgress: (v) {
+            if (v != null) {
+              _setBusyText(
+                HeaderStatus('download', '$label — ${(v * 100).round()}%'),
+              );
+            }
+          },
+        );
+        _setBusyText(
+          HeaderStatus('install', 'Устанавливаю zapret ${release.version}…'),
+        );
+        await _replaceZapret(
+          targetPath,
+          () => installFromZip(zip, Directory(targetPath)),
+        );
+        installed = release.version;
+      },
+    );
     if (ok) {
-      toasts.show(ToastData(
-        firstInstall
-            ? 'Zapret $installed установлен'
-            : auto
-                ? 'Zapret обновился сам до $installed'
-                : 'Zapret обновлён до $installed',
-        icon: LucideIcons.download,
-        actionLabel: firstInstall ? null : 'Что нового',
-        onAction: firstInstall ? null : openReleasePage,
-      ));
-      if (auto) onBackgroundNotice?.call('Zapret обновлён до $installed', 'Лаунчер поставил новую версию сам.');
+      toasts.show(
+        ToastData(
+          firstInstall
+              ? 'Zapret $installed установлен'
+              : auto
+              ? 'Zapret обновился сам до $installed'
+              : 'Zapret обновлён до $installed',
+          icon: LucideIcons.download,
+          actionLabel: firstInstall ? null : 'Что нового',
+          onAction: firstInstall ? null : openReleasePage,
+        ),
+      );
+      if (auto) {
+        onBackgroundNotice?.call(
+          'Zapret обновлён до $installed',
+          'Лаунчер поставил новую версию сам.',
+        );
+      }
     }
     return ok;
   }
@@ -1304,13 +1589,23 @@ class AppController extends ChangeNotifier {
     final previous = previousZapretVersion;
     if (inst == null || previous == null) return false;
     final from = inst.version;
-    final ok = await _task(HeaderStatus('rollback', 'Возвращаю zapret $previous…'), () async {
-      await _replaceZapret(inst.root.path, () => swapWithPrevious(inst.root));
-    });
+    final ok = await _task(
+      HeaderStatus('rollback', 'Возвращаю zapret $previous…'),
+      () async {
+        await _replaceZapret(inst.root.path, () => swapWithPrevious(inst.root));
+      },
+    );
     if (ok) {
-      final title = because == null ? 'Вернул zapret $previous' : 'Zapret $from $because — вернул $previous';
+      final title = because == null
+          ? 'Вернул zapret $previous'
+          : 'Zapret $from $because — вернул $previous';
       toasts.show(ToastData(title, icon: LucideIcons.undo2));
-      if (because != null) onBackgroundNotice?.call(title, 'Эту версию лаунчер сам больше не поставит.');
+      if (because != null) {
+        onBackgroundNotice?.call(
+          title,
+          'Эту версию лаунчер сам больше не поставит.',
+        );
+      }
     }
     return ok;
   }
@@ -1318,12 +1613,17 @@ class AppController extends ChangeNotifier {
   /// Замена файлов zapret или переход в другую папку: остановить (файлы заняты, пока
   /// работает winws.exe и загружен драйвер), заменить и запустить снова так же —
   /// службой или процессом. Zapret, работавший из прежней папки, переезжает в новую.
-  Future<void> _replaceZapret(String targetPath, Future<ZapretInstall> Function() replace) async {
+  Future<void> _replaceZapret(
+    String targetPath,
+    Future<ZapretInstall> Function() replace,
+  ) async {
     final before = _runner.status();
     final active = before.activeRoot;
     final current = _install?.root.path;
-    final affected = active != null &&
-        (p.equals(active, targetPath) || (current != null && p.equals(active, current)));
+    final affected =
+        active != null &&
+        (p.equals(active, targetPath) ||
+            (current != null && p.equals(active, current)));
     final wasRunning = before.running && affected;
     final hadService = before.serviceInstalled && affected;
     final chosen = _settings.strategy;
@@ -1335,17 +1635,21 @@ class AppController extends ChangeNotifier {
     _install = inst;
     final isBuiltin = p.equals(inst.root.path, _builtinDir);
     // Своя папка помнится и при встроенном — чтобы вернуться к ней одним нажатием.
-    _saveSettings(_settings.copyWith(
-      zapretSource: isBuiltin ? ZapretSource.builtin : ZapretSource.custom,
-      zapretDir: isBuiltin ? null : inst.root.path,
-    ));
+    _saveSettings(
+      _settings.copyWith(
+        zapretSource: isBuiltin ? ZapretSource.builtin : ZapretSource.custom,
+        zapretDir: isBuiltin ? null : inst.root.path,
+      ),
+    );
     _readZapretSettings();
 
     final s = strategy;
     if (chosen != null && s != null && inst.strategyById(chosen) == null) {
       // В новой версии такой стратегии нет — берём стандартную и говорим об этом.
-      _error = AppError('Стратегии «${Strategy(id: chosen, file: File(chosen)).title}» нет в zapret ${inst.version}',
-          'Включена «${s.title}». Если сайты не открываются — подберите стратегию заново.');
+      _error = AppError(
+        'Стратегии «${Strategy(id: chosen, file: File(chosen)).title}» нет в zapret ${inst.version}',
+        'Включена «${s.title}». Если сайты не открываются — подберите стратегию заново.',
+      );
     }
     if (s != null && (wasRunning || hadService)) {
       _setBusyText(HeaderStatus('start', 'Запускаю «${s.title}»…'));
@@ -1364,12 +1668,17 @@ class AppController extends ChangeNotifier {
 
   Future<void> _autoUpdateZapret() async {
     final target = _latest?.version;
-    if (target != null) await _autoUpdate(target, () => installLatest(auto: true));
+    if (target != null) {
+      await _autoUpdate(target, () => installLatest(auto: true));
+    }
   }
 
   /// Новая версия zapret ставится сама. Если с ней Discord или YouTube перестали
   /// открываться, а до обновления открывались, — возвращаем прежнюю и её больше не ставим.
-  Future<void> _autoUpdate(String target, Future<bool> Function() install) async {
+  Future<void> _autoUpdate(
+    String target,
+    Future<bool> Function() install,
+  ) async {
     if (!_elevated || _busy != null || probing || _install == null) return;
     final wasRunning = running;
     // Как было до обновления — чтобы было с чем сравнить.
@@ -1389,7 +1698,10 @@ class AppController extends ChangeNotifier {
   static bool _brokeServices(NetworkReport before, NetworkReport after) {
     if (after.offline) return false;
     for (final g in const ['Discord', 'YouTube']) {
-      if (before.health(g) == ServiceHealth.ok && after.health(g) != ServiceHealth.ok) return true;
+      if (before.health(g) == ServiceHealth.ok &&
+          after.health(g) != ServiceHealth.ok) {
+        return true;
+      }
     }
     return false;
   }
@@ -1398,11 +1710,17 @@ class AppController extends ChangeNotifier {
   /// После проверки zapret возвращается в то состояние, в каком был.
   Future<void> autoPick() async {
     final inst = _install;
-    if (inst == null || inst.strategies.isEmpty || _busy != null || runningElsewhere) return;
+    if (inst == null ||
+        inst.strategies.isEmpty ||
+        _busy != null ||
+        runningElsewhere) {
+      return;
+    }
     final before = _runner.status();
     final previous = strategy;
     final pick = AutoPick(
-      env: _probeEnvironment?.call(inst, _gameFilter) ??
+      env:
+          _probeEnvironment?.call(inst, _gameFilter) ??
           _WinwsProbeEnvironment(_runner, inst, _gameFilter),
       strategies: inst.strategies,
       targets: probeTargets,
@@ -1416,40 +1734,52 @@ class AppController extends ChangeNotifier {
         _runner.prepare(inst);
         // Две копии winws.exe одновременно не работают — останавливаем текущую.
         if (before.running) await _runner.stopAll();
-        final report = await pick.run(onProgress: (p) {
-          _probeProgress = p;
-          if (pick.cancelled) return notifyListeners();
-          _setBusyText(HeaderStatus(
-            'probe',
-            p.current != null
-                ? 'Проверяю «${p.current!.title}» — ${p.index + 1} из ${p.total}'
-                : p.baseline == null
+        final report = await pick.run(
+          onProgress: (p) {
+            _probeProgress = p;
+            if (pick.cancelled) return notifyListeners();
+            _setBusyText(
+              HeaderStatus(
+                'probe',
+                p.current != null
+                    ? 'Проверяю «${p.current!.title}» — ${p.index + 1} из ${p.total}'
+                    : p.baseline == null
                     ? 'Проверяю сайты без обхода…'
                     : 'Подвожу итоги…',
-          ));
-        });
+              ),
+            );
+          },
+        );
         _probeReport = report;
         final best = report.best;
         if (!report.cancelled && best != null) {
-          toasts.show(ToastData(
-            'Лучшая — «${best.strategy!.title}»: ${best.okCount} из ${best.total} сайтов',
-            icon: LucideIcons.trophy,
-            actionLabel: 'Включить',
-            onAction: () => applyStrategy(best.strategy!),
-          ));
+          toasts.show(
+            ToastData(
+              'Лучшая — «${best.strategy!.title}»: ${best.okCount} из ${best.total} сайтов',
+              icon: LucideIcons.trophy,
+              actionLabel: 'Включить',
+              onAction: () => applyStrategy(best.strategy!),
+            ),
+          );
         }
       } on NoInternetException {
-        throw const ZapretException('Сайты не открываются даже без обхода',
-            detail: 'Адреса не находятся — проверьте подключение к интернету');
+        throw const ZapretException(
+          'Сайты не открываются даже без обхода',
+          detail: 'Адреса не находятся — проверьте подключение к интернету',
+        );
       } finally {
         _autoPick = null;
         await _runner.killProcesses();
         // Возвращаем как было до проверки.
         if (before.serviceRunning) {
-          _setBusyText(const HeaderStatus('restore', 'Возвращаю службу zapret…'));
+          _setBusyText(
+            const HeaderStatus('restore', 'Возвращаю службу zapret…'),
+          );
           await _runner.startService();
         } else if (before.running && previous != null) {
-          _setBusyText(HeaderStatus('restore', 'Возвращаю «${previous.title}»…'));
+          _setBusyText(
+            HeaderStatus('restore', 'Возвращаю «${previous.title}»…'),
+          );
           await _runner.startProcess(inst, previous, _gameFilter);
         }
       }
@@ -1476,16 +1806,23 @@ class AppController extends ChangeNotifier {
 
   /// Своя папка с уже скачанным zapret. Если zapret работает — перезапустится из неё.
   Future<void> chooseFolder() async {
-    final path = win.pickFolder(title: 'Папка zapret-discord-youtube — та, где лежит service.bat');
+    final path = win.pickFolder(
+      title: 'Папка zapret-discord-youtube — та, где лежит service.bat',
+    );
     if (path == null) return;
     final inst = ZapretInstall.open(path);
     if (inst == null) {
-      _error = AppError('В этой папке нет zapret', '$path — нет bin\\winws.exe или файлов general*.bat');
+      _error = AppError(
+        'В этой папке нет zapret',
+        '$path — нет bin\\winws.exe или файлов general*.bat',
+      );
       notifyListeners();
       return;
     }
     if (await _useInstall(inst)) {
-      toasts.show(ToastData('Папка zapret выбрана', icon: LucideIcons.folderOpen));
+      toasts.show(
+        ToastData('Папка zapret выбрана', icon: LucideIcons.folderOpen),
+      );
     }
   }
 
@@ -1497,14 +1834,17 @@ class AppController extends ChangeNotifier {
       final inst = dir == null ? null : ZapretInstall.open(dir);
       if (inst == null) return chooseFolder();
       if (await _useInstall(inst)) {
-        toasts.show(ToastData('Zapret из своей папки', icon: LucideIcons.folderOpen));
+        toasts.show(
+          ToastData('Zapret из своей папки', icon: LucideIcons.folderOpen),
+        );
       }
       return;
     }
     final existing = ZapretInstall.open(_builtinDir);
     final bundled = _bundle.version;
     // Встроенный новее распакованного — ставим его, если zapret обновляется сам.
-    final fresher = bundled != null &&
+    final fresher =
+        bundled != null &&
         (existing == null ||
             (_settings.autoUpdateZapret &&
                 bundled != _settings.skippedZapretVersion &&
@@ -1513,7 +1853,9 @@ class AppController extends ChangeNotifier {
       await installBundled();
     } else if (existing != null) {
       if (await _useInstall(existing)) {
-        toasts.show(const ToastData('Встроенный zapret', icon: LucideIcons.package));
+        toasts.show(
+          const ToastData('Встроенный zapret', icon: LucideIcons.package),
+        );
       }
     } else {
       // Сборка без встроенного zapret: на главной предложим скачать его с GitHub.
@@ -1526,9 +1868,12 @@ class AppController extends ChangeNotifier {
 
   /// Перейти на zapret из другой папки; работающий zapret переезжает вместе с выбором.
   Future<bool> _useInstall(ZapretInstall inst) => _task(
-        HeaderStatus('source', running ? 'Перезапускаю zapret из новой папки…' : 'Меняю папку zapret…'),
-        () => _replaceZapret(inst.root.path, () async => inst),
-      );
+    HeaderStatus(
+      'source',
+      running ? 'Перезапускаю zapret из новой папки…' : 'Меняю папку zapret…',
+    ),
+    () => _replaceZapret(inst.root.path, () async => inst),
+  );
 
   void openZapretFolder() {
     final inst = _install;
@@ -1536,7 +1881,9 @@ class AppController extends ChangeNotifier {
   }
 
   void openReleasePage() {
-    final url = _latest?.pageUrl.toString() ?? 'https://github.com/$zapretRepo/releases/latest';
+    final url =
+        _latest?.pageUrl.toString() ??
+        'https://github.com/$zapretRepo/releases/latest';
     win.shellExecute(url);
   }
 
@@ -1551,8 +1898,10 @@ class AppController extends ChangeNotifier {
         exit(0);
       }
     } else {
-      _error = const AppError('Права администратора не получены',
-          'Windows отклонила запрос. Запустите лаунчер правой кнопкой → «Запуск от имени администратора»');
+      _error = const AppError(
+        'Права администратора не получены',
+        'Windows отклонила запрос. Запустите лаунчер правой кнопкой → «Запуск от имени администратора»',
+      );
       notifyListeners();
     }
   }
@@ -1572,14 +1921,19 @@ class _GuardBridge implements GuardedZapret {
 
   @override
   Future<bool> stop({String? status}) => _c._task(
-      HeaderStatus('guard', status ?? 'Сеть сменилась — выключаю zapret…'), _c._runner.stopAll);
+    HeaderStatus('guard', status ?? 'Сеть сменилась — выключаю zapret…'),
+    _c._runner.stopAll,
+  );
 
   @override
   Future<bool> start({String? status}) async {
     final inst = _c._install;
     final s = _c.strategy;
     if (inst == null || s == null) return false;
-    return _c._task(HeaderStatus('guard', status ?? 'Включаю «${s.title}»…'), () => _c._startWith(inst, s));
+    return _c._task(
+      HeaderStatus('guard', status ?? 'Включаю «${s.title}»…'),
+      () => _c._startWith(inst, s),
+    );
   }
 
   @override
@@ -1596,7 +1950,8 @@ class _WinwsProbeEnvironment implements ProbeEnvironment {
   final _http = HttpProber();
 
   @override
-  Future<bool> start(Strategy strategy) => _runner.startForProbe(_install, strategy, _filter);
+  Future<bool> start(Strategy strategy) =>
+      _runner.startForProbe(_install, strategy, _filter);
 
   @override
   Future<void> stop() => _runner.killProcesses();
@@ -1610,8 +1965,11 @@ class _WinwsProbeEnvironment implements ProbeEnvironment {
 
 /// Даёт страницам доступ к [AppController].
 class AppScope extends InheritedNotifier<AppController> {
-  const AppScope({super.key, required AppController controller, required super.child})
-      : super(notifier: controller);
+  const AppScope({
+    super.key,
+    required AppController controller,
+    required super.child,
+  }) : super(notifier: controller);
 
   static AppController of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<AppScope>()!.notifier!;
