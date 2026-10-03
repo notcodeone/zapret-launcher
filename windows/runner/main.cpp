@@ -72,9 +72,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project, minimized);
-  // Начальный размер окна — 560 × 640, по центру рабочей области.
+  // Начальный размер окна — 560 × 680, по центру рабочей области. Высота — чтобы главная
+  // со строкой предупреждения (например, о правах) помещалась целиком, не уходя под
+  // затемнение подвала.
   const int width = 560;
-  const int height = 640;
+  const int height = 680;
   RECT work{};
   ::SystemParametersInfo(SPI_GETWORKAREA, 0, &work, 0);
   const double scale = ::GetDpiForSystem() / 96.0;
