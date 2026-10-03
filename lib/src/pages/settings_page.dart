@@ -55,7 +55,7 @@ Widget _launcherAutostartRow(AppController c) {
   );
 }
 
-/// Обновления: версии лаунчера и zapret рядом, одна проверка на обе.
+/// Обновления: версии лаунчера и zapret рядом, у каждой — своя проверка.
 class _UpdatesCard extends StatelessWidget {
   const _UpdatesCard({required this.controller});
 
@@ -93,7 +93,6 @@ class _UpdatesCard extends StatelessWidget {
     final previous = c.previousZapretVersion;
     final skipped =
         c.updateAvailable && newest == c.settings.skippedZapretVersion;
-    final checking = c.checkingLauncher || c.checkingUpdates;
 
     return NcSettingsCard(
       children: [
@@ -109,7 +108,11 @@ class _UpdatesCard extends StatelessWidget {
                   loading: c.busy?.kind == 'launcher',
                   onPressed: idle ? c.updateLauncher : null,
                 )
-              : null,
+              : NcButton.gray(
+                  label: 'Проверить',
+                  loading: c.checkingLauncher,
+                  onPressed: idle ? () => c.checkLauncherUpdate() : null,
+                ),
         ),
         NcSettingRow(
           title: 'Zapret',
@@ -132,15 +135,15 @@ class _UpdatesCard extends StatelessWidget {
                       c.busy?.kind == 'download' || c.busy?.kind == 'install',
                   onPressed: idle && c.elevated ? () => c.updateZapret() : null,
                 )
-              : null,
+              : NcButton.gray(
+                  label: 'Проверить',
+                  loading: c.checkingUpdates,
+                  onPressed: idle ? () => c.checkUpdates() : null,
+                ),
         ),
         NcSettingRow(
           title: 'Проверять обновления',
           description: 'Раз в 6 часов — и лаунчер, и zapret.',
-          below: _inlineAction(
-            checking ? 'Проверяю…' : 'Проверить сейчас',
-            idle && !checking ? c.checkAllUpdates : null,
-          ),
           trailing: NcSwitch(
             value: c.settings.autoCheckUpdates,
             label: 'Проверять обновления',
@@ -148,7 +151,7 @@ class _UpdatesCard extends StatelessWidget {
           ),
         ),
         NcSettingRow(
-          title: 'Обновлять zapret сам',
+          title: 'Автообновление zapret',
           description: 'Если с новой версией сайты перестанут открываться — вернёт прежнюю.',
           below: !c.settings.autoUpdateZapret
               ? null
@@ -165,7 +168,7 @@ class _UpdatesCard extends StatelessWidget {
               : null,
           trailing: NcSwitch(
             value: c.settings.autoUpdateZapret,
-            label: 'Обновлять zapret сам',
+            label: 'Автообновление zapret',
             onChanged: c.setAutoUpdateZapret,
           ),
         ),

@@ -1345,12 +1345,6 @@ class AppController extends ChangeNotifier {
     win.shellExecute(url);
   }
 
-  /// Проверить и лаунчер, и zapret — кнопка «Проверить» в настройках.
-  Future<void> checkAllUpdates() async {
-    await checkLauncherUpdate(silent: true);
-    await checkUpdates();
-  }
-
   /// Скачивает установщик новой версии, запускает его и закрывает лаунчер:
   /// установщик дождётся закрытия, поставит версию поверх и запустит её.
   /// Zapret при этом не останавливается — он работает отдельно от лаунчера.

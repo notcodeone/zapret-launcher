@@ -1,4 +1,4 @@
 abstract final class AppInfo {
   static const name = 'ZapretLauncher';
-  static const version = '0.3.1';
+  static const version = '0.3.2';
 }
