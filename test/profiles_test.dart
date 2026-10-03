@@ -57,9 +57,9 @@ class _Bridge implements GuardedZapret {
   @override
   bool get busy => inner.busy;
   @override
-  Future<bool> stop() => inner.stop();
+  Future<bool> stop({String? status}) => inner.stop(status: status);
   @override
-  Future<bool> start() => inner.start();
+  Future<bool> start({String? status}) => inner.start(status: status);
   @override
   Future<bool?> servicesOpen() async => open;
 }
@@ -181,6 +181,19 @@ void main() {
     await tester.runAsync(c.guard.networkChanged);
     expect(c.running, isTrue);
     expect(runner.started, 'general (ALT2)');
+
+    // Отметили сеть, в которой компьютер сейчас, — zapret выключается сразу.
+    c.setProfileZapretOff('AS12389', true);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+    expect(c.running, isFalse);
+    expect(c.guard.autoOff?.reason, AutoOffReason.profile);
+    expect(c.guard.autoOff?.network, 'Rostelecom');
+
+    // Сняли отметку — zapret снова работает.
+    c.setProfileZapretOff('AS12389', false);
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 100)));
+    expect(c.running, isTrue);
+    expect(c.guard.autoOff, isNull);
 
     c.dispose();
     c.toasts.dispose();

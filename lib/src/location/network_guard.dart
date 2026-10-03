@@ -58,11 +58,11 @@ abstract interface class GuardedZapret {
   /// Лаунчер занят другим действием — сторож подождёт.
   bool get busy;
 
-  /// Выключить zapret. false — не получилось.
-  Future<bool> stop();
+  /// Выключить zapret. false — не получилось. [status] — что показать в шапке.
+  Future<bool> stop({String? status});
 
   /// Включить zapret. false — не получилось.
-  Future<bool> start();
+  Future<bool> start({String? status});
 
   /// Открываются ли Discord и YouTube без обхода — zapret в это время выключен.
   /// null — сети нет, понять нельзя.
@@ -212,7 +212,13 @@ class NetworkGuard extends ChangeNotifier {
     // Лаунчер открыли, а zapret уже работает — считаем, что включили его здесь.
     if (zapret.running && baseline == null) baseline = r?.country;
     await checkProvider();
-    if (!_disposed) await onNetwork?.call(startup: true);
+    if (_disposed) return;
+    final profile = await onNetwork?.call(startup: true);
+    // Лаунчер открыли в сети, где zapret не нужен, а он работает — например, служба
+    // включилась вместе с Windows.
+    if (profile?.decision == ProfileDecision.zapretOff && enabled() && zapret.running && !_disposed) {
+      await currentProfileOff(profile!.network ?? 'эта');
+    }
   }
 
   @override
@@ -317,7 +323,47 @@ class NetworkGuard extends ChangeNotifier {
     if (r != null && before != null && r.country != before) await networkChanged();
   }
 
-  /// Сеть сменилась и устоялась (или поменялся профиль текущей сети): решаем, нужен ли обход.
+  /// Подождать, пока лаунчер закончит своё (подбор стратегии, перезапуск). false — не дождались.
+  Future<bool> _waitIdle() async {
+    for (var i = 0; zapret.busy && i < 150; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    return !zapret.busy;
+  }
+
+  /// Пользователь отметил сеть, в которой компьютер сейчас: zapret здесь не нужен.
+  /// Выключаем сразу и без новых запросов страны и провайдера — сеть та же, а ответа
+  /// сервиса можно и не дождаться. Это прямое указание, поэтому — и без слежения за сетью.
+  Future<void> currentProfileOff(String network) async {
+    if (handling) {
+      // Сторож и так разбирается с сетью — профиль он прочитает уже с отметкой.
+      _again = true;
+      return;
+    }
+    if (!_canControl() || !await _waitIdle()) return;
+    final off = AutoOff(AutoOffReason.profile,
+        at: DateTime.now(), from: baseline, to: country, network: network);
+    if (zapret.running) {
+      if (!await zapret.stop(status: 'Выключаю zapret — в сети «$network» он не нужен…')) return;
+      autoOff = off;
+      onEvent?.call('Zapret выключен: сеть «$network»', 'В этой сети zapret не нужен — так отмечено в её профиле.');
+    } else if (autoOff != null) {
+      autoOff = off;
+    }
+    _notify();
+  }
+
+  /// С текущей сети сняли отметку «zapret не нужен»: если выключали из-за неё — включаем.
+  Future<void> currentProfileOn() async {
+    if (autoOff?.reason != AutoOffReason.profile || !_canControl() || !await _waitIdle()) return;
+    if (zapret.running || await zapret.start()) {
+      autoOff = null;
+      baseline = country ?? baseline;
+      _notify();
+    }
+  }
+
+  /// Сеть сменилась и устоялась: решаем, нужен ли обход.
   Future<void> networkChanged() async {
     if (handling) {
       _again = true;
@@ -328,11 +374,7 @@ class NetworkGuard extends ChangeNotifier {
     try {
       final (country, _) = await (checkCountry(force: true), checkProvider(force: true)).wait;
       final now = country?.country;
-      // Подождём, пока лаунчер закончит своё (подбор стратегии, перезапуск).
-      for (var i = 0; zapret.busy && i < 150; i++) {
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-      }
-      if (zapret.busy) return;
+      if (!await _waitIdle()) return;
       final profile = await onNetwork?.call(startup: false) ??
           (decision: ProfileDecision.none, network: null);
 

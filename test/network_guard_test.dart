@@ -17,14 +17,14 @@ class _FakeZapret implements GuardedZapret {
   final log = <String>[];
 
   @override
-  Future<bool> stop() async {
+  Future<bool> stop({String? status}) async {
     log.add('stop');
     running = false;
     return true;
   }
 
   @override
-  Future<bool> start() async {
+  Future<bool> start({String? status}) async {
     log.add('start');
     running = true;
     return true;
@@ -191,6 +191,70 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 150));
     expect(zapret.running, isFalse);
     expect(g.autoOff?.reason, AutoOffReason.countryChanged);
+    g.dispose();
+  });
+
+  test('отметили текущую сеть — zapret выключается сразу, без запросов и без слежения', () async {
+    var lookups = 0;
+    enabled = false;
+    final g = NetworkGuard(
+      zapret: zapret,
+      enabled: () => enabled,
+      countryEnabled: () => true,
+      lookup: () async {
+        lookups++;
+        return (country: country, source: 'test');
+      },
+      providerEnabled: () => true,
+      // Сервис провайдера не ответил бы — а он и не нужен: сеть та же.
+      providerLookup: () async {
+        lookups++;
+        throw const SocketException('нет ответа');
+      },
+      fingerprint: () async => 'wifi',
+      onEvent: (title, _) => events.add(title),
+    );
+    await g.start();
+    final before = lookups;
+
+    await g.currentProfileOff('Офис');
+    expect(zapret.log, ['stop']);
+    expect(g.autoOff?.reason, AutoOffReason.profile);
+    expect(g.autoOff?.network, 'Офис');
+    expect(events, ['Zapret выключен: сеть «Офис»']);
+    expect(lookups, before);
+
+    // Отметку сняли — zapret возвращается.
+    await g.currentProfileOn();
+    expect(zapret.log, ['stop', 'start']);
+    expect(g.autoOff, isNull);
+    g.dispose();
+  });
+
+  test('лаунчер открыли в сети, где zapret не нужен, — работающий выключается', () async {
+    Future<ProfileOutcome> office({required bool startup}) async =>
+        (decision: ProfileDecision.zapretOff, network: 'Офис');
+    NetworkGuard guard() => NetworkGuard(
+          zapret: zapret,
+          enabled: () => enabled,
+          countryEnabled: () => true,
+          lookup: () async => (country: country, source: 'test'),
+          fingerprint: () async => 'wifi',
+          onNetwork: office,
+        );
+
+    // Без слежения за сетью сам не трогает.
+    enabled = false;
+    final off = guard();
+    await off.start();
+    expect(zapret.log, isEmpty);
+    off.dispose();
+
+    enabled = true;
+    final g = guard();
+    await g.start();
+    expect(zapret.log, ['stop']);
+    expect(g.autoOff?.reason, AutoOffReason.profile);
     g.dispose();
   });
 

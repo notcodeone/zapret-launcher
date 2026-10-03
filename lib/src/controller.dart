@@ -536,8 +536,10 @@ class AppController extends ChangeNotifier {
     if (p == null) return;
     _upsertProfile(p.copyWith(zapretOff: value));
     notifyListeners();
-    // Отметили текущую сеть — сторож решит сразу, не дожидаясь смены сети.
-    if (asn == guard.asn) unawaited(guard.networkChanged());
+    // Отметили сеть, в которой компьютер сейчас, — zapret выключается (или возвращается) сразу.
+    if (asn == guard.asn) {
+      unawaited(value ? guard.currentProfileOff(p.name) : guard.currentProfileOn());
+    }
   }
 
   /// Стратегия профиля; для текущей сети — сразу и в работу.
@@ -1569,15 +1571,15 @@ class _GuardBridge implements GuardedZapret {
   bool get busy => _c._busy != null || _c.probing;
 
   @override
-  Future<bool> stop() =>
-      _c._task(const HeaderStatus('guard', 'Сеть сменилась — выключаю zapret…'), _c._runner.stopAll);
+  Future<bool> stop({String? status}) => _c._task(
+      HeaderStatus('guard', status ?? 'Сеть сменилась — выключаю zapret…'), _c._runner.stopAll);
 
   @override
-  Future<bool> start() async {
+  Future<bool> start({String? status}) async {
     final inst = _c._install;
     final s = _c.strategy;
     if (inst == null || s == null) return false;
-    return _c._task(HeaderStatus('guard', 'Включаю «${s.title}»…'), () => _c._startWith(inst, s));
+    return _c._task(HeaderStatus('guard', status ?? 'Включаю «${s.title}»…'), () => _c._startWith(inst, s));
   }
 
   @override

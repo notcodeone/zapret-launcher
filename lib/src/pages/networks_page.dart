@@ -251,7 +251,14 @@ class _ProfilePageState extends State<ProfilePage> {
             NcSettingRow(
               title: 'Zapret здесь не нужен',
               description: 'Например, в офисе с корпоративным VPN. В этой сети лаунчер выключит zapret, '
-                  'а в другой — включит снова. Работает со «Следить за сетью».',
+                  'а в другой — включит снова.',
+              // Отметка текущей сети выключает zapret сразу; при смене сети — только сторож.
+              below: profile.zapretOff && !c.settings.networkGuard
+                  ? const StatusLine(
+                      tone: Tone.neutral,
+                      text: 'При смене сети переключит, когда включено «Следить за сетью»',
+                    )
+                  : null,
               trailing: NcSwitch(
                 value: profile.zapretOff,
                 label: 'Zapret здесь не нужен',
