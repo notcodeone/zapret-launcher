@@ -1,6 +1,6 @@
 abstract final class AppInfo {
   static const name = 'ZapretLauncher';
-  static const version = '0.5.1';
+  static const version = '1.0.0';
 
   /// Сервер обращений из «Настройки» → «Обратная связь» (проект support-bot).
   /// Другой адрес — при сборке: `--dart-define=FEEDBACK_SERVER=https://…`.
