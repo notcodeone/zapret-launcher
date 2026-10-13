@@ -10,6 +10,10 @@ namespace {
 
 constexpr UINT kIconId = 1;
 
+// Повтор добавления значка: раз в 2 секунды в течение минуты.
+constexpr UINT kRetryInterval = 2000;
+constexpr int kRetries = 30;
+
 // Значок из пикселей: 32-битный DIB с альфа-каналом и пустая маска.
 HICON CreateIconFromRgba(const std::vector<uint8_t>& rgba, int size) {
   if (size <= 0 || rgba.size() < static_cast<size_t>(size) * size * 4) {
@@ -72,11 +76,13 @@ void TrayIcon::SetIcon(const std::vector<uint8_t>& rgba, int size) {
   if (!icon) return;
   if (icon_) DestroyIcon(icon_);
   icon_ = icon;
+  wanted_ = true;
   Sync();
 }
 
 void TrayIcon::SetTooltip(const std::wstring& tooltip) {
   tooltip_ = tooltip;
+  wanted_ = true;
   Sync();
 }
 
@@ -92,12 +98,39 @@ void TrayIcon::Sync() {
                      : LoadIcon(GetModuleHandle(nullptr),
                                 MAKEINTRESOURCE(IDI_APP_ICON));
   CopyText(data.szTip, tooltip_);
-  if (!added_) {
-    added_ = Shell_NotifyIconW(NIM_ADD, &data) != FALSE;
-  } else if (!Shell_NotifyIconW(NIM_MODIFY, &data)) {
-    // Значок мог пропасть вместе с Проводником — пробуем добавить заново.
-    added_ = Shell_NotifyIconW(NIM_ADD, &data) != FALSE;
+  if (!added_ || !Shell_NotifyIconW(NIM_MODIFY, &data)) {
+    // Значка ещё нет или он пропал вместе с Проводником — добавляем.
+    Add(&data);
   }
+}
+
+void TrayIcon::Add(NOTIFYICONDATAW* data) {
+  added_ = Shell_NotifyIconW(NIM_ADD, data) != FALSE;
+  // Занятый Проводник может ответить ошибкой по таймауту, хотя значок добавил:
+  // тогда его уже можно изменить.
+  if (!added_) added_ = Shell_NotifyIconW(NIM_MODIFY, data) != FALSE;
+  if (added_) {
+    StopRetry();
+  } else if (retries_left_ == 0) {
+    // При входе в Windows лаунчер стартует раньше панели задач. TaskbarCreated
+    // придёт, когда она появится, но на него одного не полагаемся — повторяем сами.
+    retries_left_ = kRetries;
+    SetTimer(window_, kRetryTimer, kRetryInterval, nullptr);
+  }
+}
+
+void TrayIcon::Retry() {
+  if (wanted_ && !added_ && --retries_left_ > 0) {
+    Sync();
+    return;
+  }
+  StopRetry();
+}
+
+void TrayIcon::StopRetry() {
+  if (retries_left_ == 0) return;
+  retries_left_ = 0;
+  if (window_) KillTimer(window_, kRetryTimer);
 }
 
 void TrayIcon::ShowBalloon(const std::wstring& title, const std::wstring& text) {
@@ -115,6 +148,8 @@ void TrayIcon::ShowBalloon(const std::wstring& title, const std::wstring& text) 
 }
 
 void TrayIcon::Remove() {
+  wanted_ = false;
+  StopRetry();
   if (!added_ || !window_) return;
   NOTIFYICONDATAW data = {};
   data.cbSize = sizeof(data);
@@ -125,7 +160,8 @@ void TrayIcon::Remove() {
 }
 
 void TrayIcon::Readd() {
-  if (!added_) return;
+  // Не по added_: значок мог так и не добавиться, если Проводника ещё не было.
+  if (!wanted_) return;
   added_ = false;
   Sync();
 }

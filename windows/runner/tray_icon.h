@@ -2,6 +2,7 @@
 #define RUNNER_TRAY_ICON_H_
 
 #include <windows.h>
+#include <shellapi.h>
 
 #include <cstdint>
 #include <string>
@@ -23,6 +24,9 @@ class TrayIcon {
   // Сообщение, которое Windows шлёт окну при действиях со значком.
   static constexpr UINT kCallbackMessage = WM_APP + 1;
 
+  // Таймер окна: повторить добавление значка, которое не удалось.
+  static constexpr UINT_PTR kRetryTimer = 0x5A4C;
+
   TrayIcon() = default;
   ~TrayIcon();
 
@@ -38,8 +42,11 @@ class TrayIcon {
   void ShowBalloon(const std::wstring& title, const std::wstring& text);
   void Remove();
 
-  // Проводник перезапустился — значок надо добавить заново.
+  // Проводник перезапустился или впервые запустился — значок надо добавить заново.
   void Readd();
+
+  // Сработал kRetryTimer.
+  void Retry();
 
   // Меню у курсора. Возвращает id выбранного пункта или 0.
   int ShowMenu();
@@ -48,12 +55,19 @@ class TrayIcon {
 
  private:
   void Sync();
+  void Add(NOTIFYICONDATAW* data);
+  void StopRetry();
 
   HWND window_ = nullptr;
   HICON icon_ = nullptr;
   std::wstring tooltip_;
   std::vector<TrayMenuItem> menu_;
+  // Значок есть в трее.
   bool added_ = false;
+  // Значок должен быть в трее: Dart его задал и не убирал.
+  bool wanted_ = false;
+  // Сколько ещё раз повторить добавление; 0 — таймер не запущен.
+  int retries_left_ = 0;
 };
 
 #endif  // RUNNER_TRAY_ICON_H_

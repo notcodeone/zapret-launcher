@@ -214,6 +214,10 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     tray_.Readd();
     return 0;
   }
+  if (message == WM_TIMER && wparam == TrayIcon::kRetryTimer) {
+    tray_.Retry();
+    return 0;
+  }
 
   switch (message) {
     case WM_FONTCHANGE:
