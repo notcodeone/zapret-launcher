@@ -70,9 +70,14 @@ class _ZapretLauncherAppState extends State<ZapretLauncherApp> {
         theme: buildTheme(Brightness.light),
         darkTheme: buildTheme(Brightness.dark),
         themeMode: widget.themeOverride ?? _controller.themeMode,
-        builder: (context, child) => AppScope(
-          controller: _controller,
-          child: ToastScope(controller: _toasts, child: child!),
+        // Фон под страницами: при переходе обе полупрозрачны, и без него сквозь
+        // них проступает чёрное окно — в светлой теме видно как тёмная вспышка.
+        builder: (context, child) => ColoredBox(
+          color: context.palette.background,
+          child: AppScope(
+            controller: _controller,
+            child: ToastScope(controller: _toasts, child: child!),
+          ),
         ),
         initialRoute: widget.initialRoute,
         onGenerateRoute: (settings) => NcPageRoute<void>(

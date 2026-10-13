@@ -127,6 +127,25 @@ void main() {
     await dispose(tester, c);
   });
 
+  testWidgets('под страницами — фон темы, а не чёрное окно', (tester) async {
+    final c = await pumpApp(
+      tester,
+      zapretDir: p.join(tmp.path, 'nothing-here'),
+    );
+    // При переходе обе страницы полупрозрачны — сквозь них виден этот фон.
+    final light = buildTheme(Brightness.light).extension<Palette>()!;
+    final background = tester.widget<ColoredBox>(
+      find
+          .ancestor(
+            of: find.byType(Navigator),
+            matching: find.byType(ColoredBox),
+          )
+          .first,
+    );
+    expect(background.color, light.background);
+    await dispose(tester, c);
+  });
+
   testWidgets('с zapret — статус, стратегия и переход в настройки', (
     tester,
   ) async {
