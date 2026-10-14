@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:zapret_launcher/src/telegram/aes_ctr.dart';
+import 'package:zapret_launcher/src/telegram/cloudflare.dart';
 import 'package:zapret_launcher/src/telegram/mtproto.dart';
 import 'package:zapret_launcher/src/telegram/proxy_server.dart';
 import 'package:zapret_launcher/src/telegram/telegram_proxy.dart';
@@ -365,7 +366,7 @@ void main() {
 
     test('запускается, слушает порт и останавливается', () async {
       final port = await freePort();
-      final proxy = TelegramProxy();
+      final proxy = TelegramProxy(cloudflare: const CloudflareSource.off());
       await proxy.start(secret: generateTelegramSecret(), port: port);
       expect(proxy.running, isTrue);
       final socket = await Socket.connect('127.0.0.1', port);
@@ -380,7 +381,7 @@ void main() {
     test('порт занят — понятная ошибка', () async {
       final busy = await ServerSocket.bind('127.0.0.1', 0);
       addTearDown(busy.close);
-      final proxy = TelegramProxy();
+      final proxy = TelegramProxy(cloudflare: const CloudflareSource.off());
       await expectLater(
         proxy.start(secret: generateTelegramSecret(), port: busy.port),
         throwsA(

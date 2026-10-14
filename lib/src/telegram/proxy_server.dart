@@ -11,6 +11,7 @@ class TelegramProxyStats {
     this.active = 0,
     this.total = 0,
     this.webSocket = 0,
+    this.cloudflare = 0,
     this.tcp = 0,
     this.failed = 0,
     this.badHandshakes = 0,
@@ -22,8 +23,9 @@ class TelegramProxyStats {
   final int active;
   final int total;
 
-  /// Сессии через WebSocket и напрямую по TCP.
+  /// Сессии через WebSocket к веб-версии, через Cloudflare-прокси и напрямую по TCP.
   final int webSocket;
+  final int cloudflare;
   final int tcp;
 
   /// Не удалось подключиться к Telegram ни одним способом.
@@ -38,6 +40,7 @@ class TelegramProxyStats {
     'active': active,
     'total': total,
     'webSocket': webSocket,
+    'cloudflare': cloudflare,
     'tcp': tcp,
     'failed': failed,
     'badHandshakes': badHandshakes,
@@ -51,6 +54,7 @@ class TelegramProxyStats {
       active: v('active'),
       total: v('total'),
       webSocket: v('webSocket'),
+      cloudflare: v('cloudflare'),
       tcp: v('tcp'),
       failed: v('failed'),
       badHandshakes: v('badHandshakes'),
@@ -91,6 +95,7 @@ class TelegramProxyServer {
   int _active = 0;
   int _total = 0;
   int _ws = 0;
+  int _cf = 0;
   int _tcp = 0;
   int _failed = 0;
   int _bad = 0;
@@ -104,6 +109,7 @@ class TelegramProxyServer {
     active: _active,
     total: _total,
     webSocket: _ws,
+    cloudflare: _cf,
     tcp: _tcp,
     failed: _failed,
     badHandshakes: _bad,
@@ -172,13 +178,19 @@ class TelegramProxyServer {
       up = await _connector.connect(target);
       if (up == null) {
         _failed++;
-        _log('$target: Telegram недоступен ни через WebSocket, ни напрямую');
+        _log(
+          '$target: Telegram недоступен ни через WebSocket, ни через '
+          'Cloudflare, ни напрямую',
+        );
         return;
       }
-      if (up.framed) {
-        _ws++;
-      } else {
-        _tcp++;
+      switch (up.route) {
+        case 'TCP':
+          _tcp++;
+        case 'Cloudflare':
+          _cf++;
+        default:
+          _ws++;
       }
       _log('$target: ${up.route}');
       await _bridge(client, rest, up, ciphers, hello.transport, relayInit);

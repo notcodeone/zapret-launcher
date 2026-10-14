@@ -4,7 +4,9 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'cloudflare.dart';
 import 'proxy_server.dart';
+import 'upstream.dart';
 
 export 'proxy_server.dart' show TelegramProxyStats;
 
@@ -42,7 +44,16 @@ class TelegramProxyException implements Exception {
 /// Прокси в отдельном изоляте: работа с сетью и шифрование не тормозят окно,
 /// а сбой в прокси не роняет лаунчер.
 class TelegramProxy {
-  TelegramProxy({this.onLog, this.onStats, this.onCrash});
+  TelegramProxy({
+    this.onLog,
+    this.onStats,
+    this.onCrash,
+    CloudflareSource? cloudflare,
+  }) : cloudflare =
+           cloudflare ?? CloudflareSource(cachePath: cloudflareCachePath());
+
+  /// Откуда брать домены Cloudflare-прокси: скачиваются при каждом запуске.
+  final CloudflareSource cloudflare;
 
   /// Строка для журнала из прокси.
   void Function(String line)? onLog;
@@ -110,7 +121,13 @@ class TelegramProxy {
 
     _isolate = await Isolate.spawn(
       _proxyMain,
-      [messages.sendPort, secret, port],
+      [
+        messages.sendPort,
+        secret,
+        port,
+        cloudflare.url ?? '',
+        cloudflare.cachePath ?? '',
+      ],
       onExit: exit.sendPort,
       onError: errors.sendPort,
       debugName: 'telegram-proxy',
@@ -157,21 +174,37 @@ class TelegramProxy {
   }
 }
 
-/// Точка входа изолята: [SendPort, секрет hex, порт]. Непойманная ошибка в
-/// одной сессии не должна ронять весь прокси — пишем её в журнал и работаем дальше.
+/// Точка входа изолята: [SendPort, секрет hex, порт, адрес списка Cloudflare,
+/// файл кэша] — пустые строки, если без них. Непойманная ошибка в одной сессии
+/// не должна ронять весь прокси — пишем её в журнал и работаем дальше.
 Future<void> _proxyMain(List<Object> args) async {
   final out = args[0] as SendPort;
+  String? orNull(Object s) => s == '' ? null : s as String;
   await runZonedGuarded(
-    () => _runProxy(out, args[1] as String, args[2] as int),
+    () => _runProxy(
+      out,
+      args[1] as String,
+      args[2] as int,
+      CloudflareSource(url: orNull(args[3]), cachePath: orNull(args[4])),
+    ),
     (e, _) => out.send(['log', 'Ошибка прокси: $e']),
   );
 }
 
-Future<void> _runProxy(SendPort out, String secret, int port) async {
+Future<void> _runProxy(
+  SendPort out,
+  String secret,
+  int port,
+  CloudflareSource cloudflare,
+) async {
+  void log(String line) => out.send(['log', line]);
+  final domains = CloudflareDomains();
+  final refresher = CloudflareRefresher(domains, cloudflare, onLog: log);
   final server = TelegramProxyServer(
     secret: _hex(secret),
     port: port,
-    onLog: (line) => out.send(['log', line]),
+    connector: DirectTelegramConnector(cloudflare: domains),
+    onLog: log,
   );
   try {
     await server.start();
@@ -186,6 +219,8 @@ Future<void> _runProxy(SendPort out, String secret, int port) async {
     Isolate.exit();
   }
 
+  // Порт открыт — теперь домены: из кэша сразу, свежие — в фоне.
+  refresher.start();
   final commands = ReceivePort();
   out.send(['ready', commands.sendPort]);
   var last = '';
@@ -200,6 +235,7 @@ Future<void> _runProxy(SendPort out, String secret, int port) async {
     if (cmd == 'stop') break;
   }
   timer.cancel();
+  refresher.stop();
   await server.stop();
   Isolate.exit();
 }

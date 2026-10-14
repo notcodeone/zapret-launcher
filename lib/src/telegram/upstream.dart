@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'cloudflare.dart';
 import 'mtproto.dart';
 
 /// Соединение с Telegram, через которое идёт одна сессия клиента.
@@ -51,18 +52,45 @@ const defaultWebSocketIps = {2: '149.154.167.220', 4: '149.154.167.220'};
 /// Тот же, что у Flowseal.
 const frontingSni = 'sprinthost.ru';
 
+/// Открывает WebSocket к [host] с именем [domain] в Host; в TLS — [sni] или то же имя.
+typedef WebSocketOpener = Future<(WebSocket, SecureSocket?)> Function(
+  String host,
+  String domain, {
+  required String path,
+  String? sni,
+});
+
 /// Подключение как у tg-ws-proxy: WebSocket к веб-версии Telegram по известному IP
 /// (DNS не нужен), при сбросе — с чужим именем сервера; если WebSocket для этого DC
-/// нет или он не открылся — напрямую по TCP.
+/// нет или он не открылся — через Cloudflare-прокси, а потом напрямую по TCP.
 class DirectTelegramConnector implements TelegramConnector {
   DirectTelegramConnector({
     Map<int, String> webSocketIps = defaultWebSocketIps,
     this.timeout = const Duration(seconds: 8),
+    this.cloudflare,
+    WebSocketOpener? openWebSocket,
+    this._connectTcp,
     this._frontingFirst = false,
-  }) : _wsIps = webSocketIps;
+  }) : _wsIps = webSocketIps,
+       _opener = openWebSocket;
 
   final Map<int, String> _wsIps;
   final Duration timeout;
+
+  /// Домены Cloudflare-прокси; null или пусто — без него.
+  final CloudflareDomains? cloudflare;
+
+  /// Подменяются в тестах.
+  final WebSocketOpener? _opener;
+  final Future<Socket> Function(String ip)? _connectTcp;
+
+  /// Сколько доменов пробовать за одно подключение: если Cloudflare закрыт целиком,
+  /// перебор всех доменов задержал бы каждое подключение на минуты.
+  static const cloudflareTries = 3;
+
+  /// После неудачи Cloudflare пробуем снова всё реже, до часа.
+  DateTime? _cloudflareRetryAfter;
+  int _cloudflareFailures = 0;
 
   /// Последний раз помогла подмена имени — с неё и начинаем.
   bool _frontingFirst;
@@ -78,7 +106,7 @@ class DirectTelegramConnector implements TelegramConnector {
       for (final domain in webSocketDomains(target)) {
         for (final fronted in _frontingFirst ? [true, false] : [false, true]) {
           try {
-            final (ws, tls) = await _openWebSocket(
+            final (ws, tls) = await (_opener ?? _openWebSocket)(
               ip,
               domain,
               path: target.test ? '/apiws_test' : '/apiws',
@@ -96,7 +124,36 @@ class DirectTelegramConnector implements TelegramConnector {
         }
       }
     }
-    return _tcp(target);
+    return await _cloudflare(target) ?? await _tcp(target);
+  }
+
+  /// WebSocket через Cloudflare: kwsN.<домен>, сертификат — самого домена.
+  /// Имена доменов в журнал не пишем.
+  Future<Upstream?> _cloudflare(TelegramTarget target) async {
+    final domains = cloudflare;
+    if (domains == null || domains.isEmpty || target.test) return null;
+    final retry = _cloudflareRetryAfter;
+    if (retry != null && DateTime.now().isBefore(retry)) return null;
+    for (final base in domains.forDc(target.dc).take(cloudflareTries)) {
+      final host = 'kws${target.dc}.$base';
+      try {
+        final (ws, tls) = await (_opener ?? _openWebSocket)(
+          host,
+          host,
+          path: '/apiws',
+        );
+        domains.use(target.dc, base);
+        _cloudflareFailures = 0;
+        _cloudflareRetryAfter = null;
+        return WebSocketUpstream(ws, 'Cloudflare', socket: tls);
+      } on Object {
+        continue;
+      }
+    }
+    final n = ++_cloudflareFailures;
+    final seconds = (30 * (1 << (n - 1).clamp(0, 7))).clamp(30, 3600);
+    _cloudflareRetryAfter = DateTime.now().add(Duration(seconds: seconds));
+    return null;
   }
 
   Future<Upstream?> _tcp(TelegramTarget target) async {
@@ -105,7 +162,9 @@ class DirectTelegramConnector implements TelegramConnector {
     final retry = _tcpRetryAfter[ip];
     if (retry != null && DateTime.now().isBefore(retry)) return null;
     try {
-      final socket = await Socket.connect(ip, 443, timeout: timeout);
+      final socket =
+          await (_connectTcp?.call(ip) ??
+              Socket.connect(ip, 443, timeout: timeout));
       socket.setOption(SocketOption.tcpNoDelay, true);
       _tcpFailures.remove(ip);
       _tcpRetryAfter.remove(ip);
@@ -119,8 +178,8 @@ class DirectTelegramConnector implements TelegramConnector {
     }
   }
 
-  /// WebSocket к [ip] с именем [domain] в Host; в TLS — [sni] или то же имя.
-  /// Вместе с WebSocket — его TLS-сокет: им соединение рвётся сразу.
+  /// WebSocket к [ip] (или имени, тогда через DNS) с именем [domain] в Host; в TLS —
+  /// [sni] или то же имя. Вместе с WebSocket — его TLS-сокет: им соединение рвётся сразу.
   Future<(WebSocket, SecureSocket?)> _openWebSocket(
     String ip,
     String domain, {

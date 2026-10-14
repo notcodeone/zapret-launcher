@@ -146,9 +146,10 @@ class TelegramPage extends StatelessWidget {
               NcSettingRow(
                 title: 'Фото и видео',
                 description:
-                    'Сообщения идут через веб-версию Telegram. Часть фото и видео '
-                    'хранится в других дата-центрах — они могут грузиться медленно '
-                    'или не грузиться.',
+                    'Сообщения идут через веб-версию Telegram, остальные '
+                    'дата-центры — через Cloudflare. Если Cloudflare у провайдера '
+                    'недоступен, часть фото и видео может грузиться медленно или '
+                    'не грузиться.',
               ),
             ],
           ),
@@ -161,7 +162,7 @@ class TelegramPage extends StatelessWidget {
     final s = c.telegramStats;
     final parts = ['Работает на 127.0.0.1:$port'];
     if (s.active > 0) parts.add('подключений: ${s.active}');
-    if (s.badHandshakes > 0 && s.webSocket + s.tcp == 0) {
+    if (s.badHandshakes > 0 && s.webSocket + s.cloudflare + s.tcp == 0) {
       parts.add('Telegram подключается со старой ссылкой — подключите заново');
     }
     return parts.join(' · ');
