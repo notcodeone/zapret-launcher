@@ -33,6 +33,9 @@ class AppSettings {
     this.autoCheckUpdates = true,
     this.autoUpdateZapret = true,
     this.skippedZapretVersion,
+    this.telegramProxy = false,
+    this.telegramSecret,
+    this.telegramPort = 1443,
   });
 
   /// Откуда zapret; null — настройки от версии без встроенного zapret (решит контроллер).
@@ -77,6 +80,16 @@ class AppSettings {
   /// Версия zapret, от которой лаунчер откатился: сам её больше не ставит.
   final String? skippedZapretVersion;
 
+  /// Прокси для Telegram Desktop включён: работает, пока открыт лаунчер.
+  final bool telegramProxy;
+
+  /// Секрет прокси (32 hex-символа): он в ссылке, сохранённой в Telegram, поэтому
+  /// не меняется между запусками.
+  final String? telegramSecret;
+
+  /// Порт прокси на 127.0.0.1.
+  final int telegramPort;
+
   AppSettings copyWith({
     ZapretSource? zapretSource,
     String? zapretDir,
@@ -93,6 +106,9 @@ class AppSettings {
     bool? autoCheckUpdates,
     bool? autoUpdateZapret,
     String? skippedZapretVersion,
+    bool? telegramProxy,
+    String? telegramSecret,
+    int? telegramPort,
   }) => AppSettings(
     zapretSource: zapretSource ?? this.zapretSource,
     zapretDir: zapretDir ?? this.zapretDir,
@@ -109,6 +125,9 @@ class AppSettings {
     autoCheckUpdates: autoCheckUpdates ?? this.autoCheckUpdates,
     autoUpdateZapret: autoUpdateZapret ?? this.autoUpdateZapret,
     skippedZapretVersion: skippedZapretVersion ?? this.skippedZapretVersion,
+    telegramProxy: telegramProxy ?? this.telegramProxy,
+    telegramSecret: telegramSecret ?? this.telegramSecret,
+    telegramPort: telegramPort ?? this.telegramPort,
   );
 
   Map<String, Object?> toJson() => {
@@ -127,6 +146,9 @@ class AppSettings {
     'autoCheckUpdates': autoCheckUpdates,
     'autoUpdateZapret': autoUpdateZapret,
     'skippedZapretVersion': skippedZapretVersion,
+    'telegramProxy': telegramProxy,
+    'telegramSecret': telegramSecret,
+    'telegramPort': telegramPort,
   };
 
   factory AppSettings.fromJson(Map<String, Object?> json) => AppSettings(
@@ -154,6 +176,9 @@ class AppSettings {
     autoCheckUpdates: json['autoCheckUpdates'] as bool? ?? true,
     autoUpdateZapret: json['autoUpdateZapret'] as bool? ?? true,
     skippedZapretVersion: json['skippedZapretVersion'] as String?,
+    telegramProxy: json['telegramProxy'] as bool? ?? false,
+    telegramSecret: json['telegramSecret'] as String?,
+    telegramPort: json['telegramPort'] as int? ?? 1443,
   );
 }
 

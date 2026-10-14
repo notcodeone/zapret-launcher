@@ -14,6 +14,7 @@ import 'platform/autostart.dart';
 import 'platform/network_watch.dart';
 import 'platform/win32.dart' as win;
 import 'settings.dart';
+import 'telegram/telegram_proxy.dart';
 import 'updates/launcher_updates.dart';
 import 'ui/ui.dart';
 import 'feedback/feedback.dart';
@@ -55,8 +56,10 @@ class AppController extends ChangeNotifier {
     String? builtinZapretDir,
     FeedbackClient? feedback,
     FeedbackTelegram? feedbackTelegram,
+    TelegramProxy? telegramProxy,
   }) : _feedback = feedback ?? FeedbackClient(),
        _feedbackTelegram = feedbackTelegram ?? FeedbackTelegram(),
+       _telegram = telegramProxy ?? TelegramProxy(),
        _bundle = bundle ?? ZapretBundle.app(),
        _builtinDir = builtinZapretDir ?? SettingsStore.defaultZapretDir(),
        _autostart = launcherAutostart ?? const LauncherAutostart(),
@@ -321,6 +324,12 @@ class AppController extends ChangeNotifier {
       }),
     );
     unawaited(refreshLauncherAutostart());
+
+    _telegram
+      ..onLog = _onTelegramLog
+      ..onStats = ((_) => notifyListeners())
+      ..onCrash = _onTelegramCrash;
+    if (_settings.telegramProxy) unawaited(_startTelegram());
   }
 
   /// Первый запуск или настройки от версии без встроенного zapret. Свою папку
@@ -635,6 +644,11 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _telegram
+      ..onLog = null
+      ..onStats = null
+      ..onCrash = null;
+    unawaited(_telegram.stop());
     _feedback.close();
     _netWatch.stop();
     guard.removeListener(notifyListeners);
@@ -874,6 +888,7 @@ class AppController extends ChangeNotifier {
 
   /// Выход: подбор стратегии останавливается, и zapret возвращается как был.
   Future<void> prepareToQuit() async {
+    await _telegram.stop();
     if (!probing) return;
     cancelAutoPick();
     final deadline = DateTime.now().add(const Duration(seconds: 20));
@@ -1461,6 +1476,125 @@ class AppController extends ChangeNotifier {
     if (ok) _rememberForNetwork();
     notifyListeners();
     if (ok) await _restartIfRunning('Применяю IPSet…');
+  }
+
+  // ── Прокси для Telegram ──
+
+  final TelegramProxy _telegram;
+  TelegramProxyState _telegramState = TelegramProxyState.off;
+  AppError? _telegramError;
+  bool _telegramStarting = false;
+  final _telegramRestarts = <DateTime>[];
+
+  /// Строки прокси, уже записанные в журнал: каждый путь до DC — один раз.
+  final _telegramSeen = <String>{};
+
+  TelegramProxyState get telegramState => _telegramState;
+
+  /// Почему прокси не запустился или перестал работать.
+  AppError? get telegramError => _telegramError;
+  TelegramProxyStats get telegramStats => _telegram.stats;
+
+  /// Ссылка для Telegram Desktop; секрет создаётся при первом обращении.
+  String get telegramLink => telegramProxyLink(
+    port: _settings.telegramPort,
+    secret: _telegramSecret(),
+  );
+
+  String _telegramSecret() {
+    final s = _settings.telegramSecret;
+    if (s != null && isTelegramSecret(s)) return s;
+    final fresh = generateTelegramSecret();
+    _saveSettings(_settings.copyWith(telegramSecret: fresh));
+    return fresh;
+  }
+
+  Future<void> setTelegramProxy(bool on) async {
+    _saveSettings(_settings.copyWith(telegramProxy: on));
+    _telegramRestarts.clear();
+    if (on) return _startTelegram();
+    await _telegram.stop();
+    _telegramState = TelegramProxyState.off;
+    _telegramError = null;
+    _journal('Прокси для Telegram выключен');
+    notifyListeners();
+  }
+
+  /// Ещё раз — например, когда освободили порт.
+  Future<void> retryTelegramProxy() => _startTelegram();
+
+  Future<void> _startTelegram() async {
+    if (_telegramStarting) return;
+    _telegramStarting = true;
+    _telegramState = TelegramProxyState.starting;
+    _telegramError = null;
+    notifyListeners();
+    final port = _settings.telegramPort;
+    try {
+      await _telegram.start(secret: _telegramSecret(), port: port);
+      _telegramSeen.clear();
+      if (_settings.telegramProxy) {
+        _telegramState = TelegramProxyState.on;
+        _journal('Прокси для Telegram работает на порту $port');
+      } else {
+        // Выключили, пока запускался.
+        await _telegram.stop();
+        _telegramState = TelegramProxyState.off;
+      }
+    } on TelegramProxyException catch (e) {
+      if (_settings.telegramProxy) {
+        _telegramState = TelegramProxyState.failed;
+        _telegramError = AppError(e.message, e.detail);
+        _journal('Прокси для Telegram не запустился: $e');
+      } else {
+        _telegramState = TelegramProxyState.off;
+      }
+    } finally {
+      _telegramStarting = false;
+    }
+    notifyListeners();
+  }
+
+  void _onTelegramLog(String line) {
+    if (_telegramSeen.add(line)) _journal('Telegram: $line');
+  }
+
+  /// Изолят прокси упал: запускаем снова, но не больше трёх раз за 5 минут.
+  void _onTelegramCrash() {
+    _journal('Прокси для Telegram остановился сам');
+    if (!_settings.telegramProxy) return;
+    final now = DateTime.now();
+    _telegramRestarts.removeWhere(
+      (t) => now.difference(t) > const Duration(minutes: 5),
+    );
+    if (_telegramRestarts.length >= 3) {
+      _telegramState = TelegramProxyState.failed;
+      _telegramError = const AppError(
+        'Прокси для Telegram останавливается снова и снова',
+        'Выключите и включите его заново. Если не поможет — сообщите об ошибке '
+            'в «Обратной связи» с журналом.',
+      );
+      notifyListeners();
+      return;
+    }
+    _telegramRestarts.add(now);
+    _telegramState = TelegramProxyState.starting;
+    notifyListeners();
+    Timer(const Duration(seconds: 2), () {
+      if (_settings.telegramProxy) unawaited(_startTelegram());
+    });
+  }
+
+  /// Открывает ссылку в Telegram Desktop — он спросит, подключить ли прокси.
+  /// Лаунчер работает с правами администратора, и запущенный им Telegram получил бы
+  /// их тоже; explorer.exe открывает ссылку от имени обычного пользователя.
+  void openTelegramLink() {
+    final link = telegramLink;
+    if (_elevated) {
+      Process.start('explorer.exe', [link]).ignore();
+    } else {
+      win.shellExecute(link);
+    }
   }
 
   // ── Обновления лаунчера ──
@@ -2165,4 +2299,14 @@ class AppScope extends InheritedNotifier<AppController> {
   /// Без подписки на изменения — для initState и обработчиков.
   static AppController read(BuildContext context) =>
       context.getInheritedWidgetOfExactType<AppScope>()!.notifier!;
+}
+
+/// Состояние прокси для Telegram.
+enum TelegramProxyState {
+  off,
+  starting,
+  on,
+
+  /// Включён в настройках, но не работает: порт занят или прокси падает.
+  failed,
 }

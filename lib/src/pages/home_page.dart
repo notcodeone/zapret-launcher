@@ -15,6 +15,7 @@ import 'lists_page.dart';
 import 'network_menu.dart';
 import 'settings_page.dart';
 import 'strategies_page.dart';
+import 'telegram_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -92,6 +93,32 @@ class HomePage extends StatelessWidget {
             ),
           ),
         ],
+        // Прокси для Telegram не зависит от zapret — виден и без него.
+        const SizedBox(height: NcSpace.gapCards),
+        Appear(
+          index: i++,
+          child: NcSettingsCard(
+            children: [
+              _NavRow(
+                icon: LucideIcons.send,
+                title: 'Telegram',
+                description: telegramLine(c),
+                below: switch (c.telegramState) {
+                  TelegramProxyState.on => const StatusLine(
+                    tone: Tone.success,
+                    text: 'Работает',
+                  ),
+                  TelegramProxyState.failed => const StatusLine(
+                    tone: Tone.danger,
+                    text: 'Не работает',
+                  ),
+                  _ => null,
+                },
+                page: const TelegramPage(),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

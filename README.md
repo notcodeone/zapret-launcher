@@ -49,6 +49,13 @@ Zapret уже внутри: после установки ничего скач�
 - Можно вставить ссылки, строки из hosts, русские домены (переводятся в punycode).
 - Импорт и экспорт текстовых файлов.
 
+**Telegram**
+- Прокси для Telegram Desktop прямо в лаунчере — «Telegram» на главной. Telegram подключается к
+  нему, а он — к Telegram через веб-версию (WebSocket). Отдельная программа и zapret не нужны.
+- «Подключить» добавляет прокси в Telegram одной ссылкой. Прокси работает, пока открыт лаунчер,
+  и включается сам при следующем запуске.
+- Фото и видео из части дата-центров могут грузиться медленно или не грузиться.
+
 **Обратная связь**
 - «Настройки» → «Обратная связь»: сообщить об ошибке или предложить улучшение прямо из лаунчера.
   Обращение анонимное, аккаунт не нужен. Сведения о системе и журнал прикладываются, только если
@@ -118,6 +125,7 @@ Zapret уже внутри: после установки ничего скач�
 | Сайты из `utils\targets.txt` (Discord, YouTube, Google, Cloudflare) | Проверка сети и подбор стратегии | — |
 | `api.country.is`, `cloudflare.com/cdn-cgi/trace`, `ipwho.is`, `ipapi.co` | Страна по IP | «Определять страну» |
 | `ipwho.is`, `ipapi.co` | Провайдер по IP — для профилей сетей | «Помнить стратегию для каждой сети» |
+| Серверы Telegram: `kws*.web.telegram.org` по адресу `149.154.167.220`, дата-центры `149.154.*` и `91.105.192.100` | Только когда включён прокси для Telegram и к нему подключается Telegram Desktop | «Прокси для Telegram» |
 | Сервер обращений | Только после нажатия «Отправить» в «Обратной связи»: задача для защиты от спама и само обращение | — (без нажатия запросов нет) |
 | Сообщения канала в Telegram | Только после нажатия «Написать в Telegram»: лаунчер открывает ссылку, сообщение отправляет сам человек | — (без нажатия ничего не открывается) |
 
@@ -199,6 +207,7 @@ lib/src/
   pages/       экраны
   zapret/      стратегии, установка и обновление zapret, запуск, подбор, диагностика, списки
   location/    страна, провайдер, сторож сети, профили сетей
+  telegram/    прокси для Telegram: обфускация MTProto, WebSocket к Telegram, изолят
   platform/    Win32 через FFI, окно и трей, автозапуск
   updates/     самообновление лаунчера
 assets/zapret/   встроенный zapret: версия и лицензия; архив кладёт tool/fetch_zapret.ps1
@@ -262,6 +271,8 @@ Telegram-канале. Оно отвечает на два вопроса: чт�
 ## Благодарности
 
 - [Flowseal/zapret-discord-youtube](https://github.com/Flowseal/zapret-discord-youtube) — стратегии и сборка zapret для Discord и YouTube;
+- [Flowseal/tg-ws-proxy](https://github.com/Flowseal/tg-ws-proxy) — прокси для Telegram через WebSocket: его протокол
+  перенесён в лаунчер на Dart;
 - [bol-van/zapret](https://github.com/bol-van/zapret) — сам zapret и `winws`;
 - [WinDivert](https://reqrypt.org/windivert.html) — перехват пакетов в Windows;
 - [Lucide](https://lucide.dev) — иконки (ISC).
@@ -269,6 +280,7 @@ Telegram-канале. Оно отвечает на два вопроса: чт�
 Встроенный zapret распространяется по лицензии MIT (© bol-van, © Flowseal), драйвер WinDivert — по
 LGPLv3 или GPLv2, без изменений; его исходники — [basil00/WinDivert](https://github.com/basil00/WinDivert).
 Текст лицензий — [`assets/zapret/LICENSE.txt`](assets/zapret/LICENSE.txt), в установленном лаунчере —
-`data\flutter_assets\assets\zapret\LICENSE.txt`.
+`data\flutter_assets\assets\zapret\LICENSE.txt`. Прокси для Telegram основан на Flowseal/tg-ws-proxy (MIT, © Flowseal) —
+[`assets/telegram/LICENSE.txt`](assets/telegram/LICENSE.txt).
 
 Интерфейс — по дизайн-системе NotCode.

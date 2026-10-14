@@ -62,6 +62,8 @@ flutter:
   # кладёт tool/fetch_zapret.ps1 (без него сборка скачивает zapret с GitHub).
   assets:
     - assets/zapret/
+    # Лицензия Flowseal/tg-ws-proxy: протокол прокси для Telegram перенесён оттуда.
+    - assets/telegram/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

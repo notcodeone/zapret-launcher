@@ -11,6 +11,7 @@ import 'pages/network_menu.dart';
 import 'pages/networks_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/strategies_page.dart';
+import 'pages/telegram_page.dart';
 import 'shell.dart';
 import 'ui/ui.dart';
 
@@ -98,6 +99,7 @@ class _ZapretLauncherAppState extends State<ZapretLauncherApp> {
             '/lists' => const ListsPage(),
             '/networks' => const NetworksPage(),
             '/options' => const BypassOptionsPage(),
+            '/telegram' => const TelegramPage(),
             _ => const HomePage(),
           },
         ),
