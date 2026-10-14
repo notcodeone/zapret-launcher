@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:path/path.dart' as p;
 
@@ -16,6 +17,7 @@ import 'settings.dart';
 import 'updates/launcher_updates.dart';
 import 'ui/ui.dart';
 import 'feedback/feedback.dart';
+import 'feedback/telegram.dart';
 import 'zapret/bundle.dart';
 import 'zapret/diagnostics.dart';
 import 'zapret/install.dart';
@@ -52,7 +54,9 @@ class AppController extends ChangeNotifier {
     ZapretBundle? bundle,
     String? builtinZapretDir,
     FeedbackClient? feedback,
+    FeedbackTelegram? feedbackTelegram,
   }) : _feedback = feedback ?? FeedbackClient(),
+       _feedbackTelegram = feedbackTelegram ?? FeedbackTelegram(),
        _bundle = bundle ?? ZapretBundle.app(),
        _builtinDir = builtinZapretDir ?? SettingsStore.defaultZapretDir(),
        _autostart = launcherAutostart ?? const LauncherAutostart(),
@@ -76,6 +80,9 @@ class AppController extends ChangeNotifier {
 
   /// Отправка обращений из «Обратной связи».
   final FeedbackClient _feedback;
+
+  /// Обращения через сообщения канала в Telegram — пока сервер недоступен.
+  final FeedbackTelegram _feedbackTelegram;
 
   /// Zapret, встроенный в лаунчер, и папка, куда он распаковывается.
   final ZapretBundle _bundle;
@@ -475,7 +482,18 @@ class AppController extends ChangeNotifier {
   bool get sendingFeedback => _sendingFeedback;
 
   /// Отправка обращений настроена в этой сборке.
-  bool get feedbackAvailable => _feedback.configured;
+  bool get feedbackAvailable =>
+      _feedback.configured || _feedbackTelegram.configured;
+
+  /// Сервера нет — обращение уходит в сообщения канала в Telegram.
+  bool get feedbackViaTelegram =>
+      !_feedback.configured && _feedbackTelegram.configured;
+
+  /// Сервер не ответил — можно написать в сообщения канала.
+  bool get feedbackTelegramFallback => _feedbackTelegram.configured;
+
+  /// Канал для обращений — показываем, если Telegram не открылся.
+  String get feedbackTelegramLink => _feedbackTelegram.webLink;
 
   /// Сведения о системе для обращения — только поля, которые принимает сервер.
   Map<String, Object> feedbackDetails() {
@@ -586,6 +604,26 @@ class AppController extends ChangeNotifier {
       _sendingFeedback = false;
       notifyListeners();
     }
+  }
+
+  /// Копирует обращение в буфер обмена и открывает сообщения канала в Telegram —
+  /// вставляет и отправляет его человек сам. Сведения и журнал — только если
+  /// человек согласился ([attach]). false — Windows не открыла ни Telegram, ни браузер.
+  Future<bool> writeFeedbackToTelegram({
+    required FeedbackKind kind,
+    required String text,
+    required bool attach,
+  }) async {
+    final message = FeedbackTelegram.message(
+      kind: kind,
+      text: text,
+      details: feedbackDetails(),
+      log: attach ? feedbackLog() : null,
+    );
+    await Clipboard.setData(ClipboardData(text: message));
+    final opened = _feedbackTelegram.open(elevated: _elevated);
+    if (opened) _journal('Открыты сообщения канала для обращения');
+    return opened;
   }
 
   @override

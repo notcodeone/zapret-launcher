@@ -27,6 +27,8 @@ if (-not $SkipBuild) {
     # без неё — тот, что в AppInfo.feedbackServer.
     $defines = @()
     if ($env:FEEDBACK_SERVER) { $defines += "--dart-define=FEEDBACK_SERVER=$($env:FEEDBACK_SERVER.TrimEnd('/'))" }
+    # Канал в Telegram для обращений — переменной FEEDBACK_TELEGRAM, без неё — notcodeone.
+    if ($env:FEEDBACK_TELEGRAM) { $defines += "--dart-define=FEEDBACK_TELEGRAM=$($env:FEEDBACK_TELEGRAM)" }
     flutter build windows --release @defines
     if ($LASTEXITCODE -ne 0) { throw 'flutter build windows --release не удался' }
   } finally { Pop-Location }

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -10,6 +11,7 @@ import 'package:path/path.dart' as p;
 import 'package:zapret_launcher/src/app.dart';
 import 'package:zapret_launcher/src/controller.dart';
 import 'package:zapret_launcher/src/feedback/feedback.dart';
+import 'package:zapret_launcher/src/feedback/telegram.dart';
 import 'package:zapret_launcher/src/location/profiles.dart';
 import 'package:zapret_launcher/src/settings.dart';
 import 'package:zapret_launcher/src/ui/ui.dart';
@@ -236,6 +238,84 @@ void main() {
     });
   });
 
+  group('FeedbackTelegram', () {
+    test('канал задаётся именем, @именем или ссылкой', () {
+      expect(FeedbackTelegram(channel: 'notcodeone').channel, 'notcodeone');
+      expect(FeedbackTelegram(channel: '@notcodeone').channel, 'notcodeone');
+      expect(
+        FeedbackTelegram(channel: 'https://t.me/notcodeone').channel,
+        'notcodeone',
+      );
+      expect(FeedbackTelegram(channel: '').configured, isFalse);
+      expect(
+        FeedbackTelegram(channel: 'https://web.telegram.org/a/#-1').configured,
+        isFalse,
+      );
+      expect(FeedbackTelegram().channel, 'notcodeone');
+    });
+
+    test('открываются сообщения канала; без Telegram Desktop — в браузере', () {
+      final opened = <String>[];
+      bool open(String link, {required bool elevated}) {
+        opened.add(link);
+        return true;
+      }
+
+      expect(
+        FeedbackTelegram(
+          channel: 'notcodeone',
+          open: open,
+          hasApp: () => false,
+        ).open(elevated: false),
+        isTrue,
+      );
+      expect(
+        FeedbackTelegram(
+          channel: 'notcodeone',
+          open: open,
+          hasApp: () => true,
+        ).open(elevated: false),
+        isTrue,
+      );
+      expect(opened, [
+        'https://t.me/notcodeone?direct',
+        'tg://resolve?domain=notcodeone&direct',
+      ]);
+    });
+
+    test('сообщение: метка, текст и версии; журнал — только приложенный', () {
+      const details = <String, Object>{
+        'launcher': '1.0.1',
+        'zapret': '1.9.0',
+        'windows': '10.0.26100',
+        'strategy': 'general (ALT2)',
+      };
+      const head =
+          '#предложение\nПокажите стратегию в трее\n\n'
+          'ZapretLauncher 1.0.1 · zapret 1.9.0 · Windows 10.0.26100 · '
+          '«general (ALT2)»';
+      expect(
+        FeedbackTelegram.message(
+          kind: FeedbackKind.idea,
+          text: '  Покажите стратегию в трее  ',
+          details: details,
+        ),
+        head,
+      );
+      expect(
+        FeedbackTelegram.message(
+          kind: FeedbackKind.idea,
+          text: 'Покажите стратегию в трее',
+          details: details,
+          log: 'События:\n12:00:00 Запущено',
+        ),
+        '$head\n\nСведения о системе:\nlauncher: 1.0.1\nzapret: 1.9.0\n'
+        'windows: 10.0.26100\nstrategy: general (ALT2)\n\n'
+        'События:\n12:00:00 Запущено',
+      );
+    });
+  });
+
   group('Обратная связь в лаунчере', () {
     late Directory tmp;
     late String root;
@@ -249,7 +329,11 @@ void main() {
     });
     tearDown(() => tmp.deleteSync(recursive: true));
 
-    AppController make(_FakeServer server) {
+    AppController make(
+      _FakeServer server, {
+      String serverUrl = 'https://s',
+      FeedbackTelegram? telegram,
+    }) {
       final store = SettingsStore(path: p.join(tmp.path, 's.json'))
         ..save(
           AppSettings(
@@ -274,7 +358,8 @@ void main() {
         launcherAutostart: FakeAutostart(),
         bundle: ZapretBundle(Directory(p.join(tmp.path, 'no-bundle'))),
         builtinZapretDir: p.join(tmp.path, 'builtin'),
-        feedback: FeedbackClient(server: 'https://s', client: server.client),
+        feedback: FeedbackClient(server: serverUrl, client: server.client),
+        feedbackTelegram: telegram ?? FeedbackTelegram(channel: ''),
       );
     }
 
@@ -359,6 +444,121 @@ void main() {
       expect(find.text('Обращение №42 отправлено'), findsOneWidget);
       expect(server.posts.single['kind'], 'bug');
       expect(server.posts.single.containsKey('details'), isFalse);
+
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+      c.toasts.dispose();
+      tester.view.reset();
+    });
+
+    testWidgets('без сервера — «Написать в Telegram»: буфер обмена и канал', (
+      tester,
+    ) async {
+      final opened = <String>[];
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String;
+          }
+          return null;
+        },
+      );
+      final server = _FakeServer();
+      final c = make(
+        server,
+        serverUrl: '',
+        telegram: FeedbackTelegram(
+          channel: '@notcodeone',
+          hasApp: () => true,
+          open: (link, {required elevated}) {
+            opened.add(link);
+            return true;
+          },
+        ),
+      )..init();
+      expect(c.feedbackViaTelegram, isTrue);
+      tester.view.physicalSize = const Size(560, 640);
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(
+        ZapretLauncherApp(controller: c, initialRoute: '/settings/feedback'),
+      );
+      await tester.pumpAndSettle();
+
+      final fab = find.widgetWithText(NcFab, 'Написать в Telegram');
+      await tester.enterText(find.byType(TextField), 'Discord не открывается');
+      // Сообщения канала видят только администраторы — журнал по галочке.
+      await tester.ensureVisible(find.byType(NcSwitch));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(NcSwitch));
+      await tester.pump();
+      await tester.runAsync(() async {
+        tester.widget<NcFab>(fab).onPressed!();
+        while (opened.isEmpty) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      });
+      await tester.pump();
+      expect(copied, startsWith('#ошибка\nDiscord не открывается\n\n'));
+      expect(copied, contains('Сведения о системе:\nlauncher: '));
+      expect(copied, isNot(contains('Дача Ивановых')));
+      expect(opened.single, 'tg://resolve?domain=notcodeone&direct');
+      expect(
+        find.text(
+          'Обращение скопировано — вставьте его в Telegram (Ctrl+V) и отправьте',
+        ),
+        findsOneWidget,
+      );
+      expect(server.posts, isEmpty);
+      expect(server.challenges, 0);
+
+      await tester.pumpWidget(const SizedBox());
+      c.dispose();
+      c.toasts.dispose();
+      tester.view.reset();
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      );
+    });
+
+    testWidgets('сервер не ответил — рядом с ошибкой «Написать в Telegram»', (
+      tester,
+    ) async {
+      final server = _FakeServer()..reply = (_) => http.Response('oops', 502);
+      final c = make(
+        server,
+        telegram: FeedbackTelegram(
+          channel: 'notcodeone',
+          open: (_, {required elevated}) => true,
+        ),
+      )..init();
+      expect(c.feedbackViaTelegram, isFalse);
+      tester.view.physicalSize = const Size(560, 640);
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(
+        ZapretLauncherApp(controller: c, initialRoute: '/settings/feedback'),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Discord не открывается');
+      await tester.pump();
+      final fab = find.widgetWithText(NcFab, 'Отправить');
+      await tester.runAsync(() async {
+        tester.widget<NcFab>(fab).onPressed!();
+        while (c.sendingFeedback || server.posts.isEmpty) {
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+      });
+      await tester.pump();
+      expect(
+        find.text('Не удалось отправить обращение, попробуйте позже.'),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(NcQuietButton, 'Написать в Telegram'),
+        findsOneWidget,
+      );
 
       await tester.pumpWidget(const SizedBox());
       c.dispose();

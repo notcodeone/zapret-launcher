@@ -11,6 +11,10 @@ import 'settings_page.dart';
 /// Обращение анонимное. Сведения о системе и журнал уходят, только если человек
 /// сам отметил это и может посмотреть, что именно отправится. До нажатия
 /// «Отправить» лаунчер к серверу не обращается.
+///
+/// Пока сервера нет — «Написать в Telegram»: обращение копируется в буфер обмена,
+/// открываются сообщения канала, и человек отправляет его сам. Их видят только
+/// администраторы канала, поэтому сведения и журнал — по той же галочке.
 class FeedbackPage extends StatefulWidget {
   const FeedbackPage({super.key});
 
@@ -58,12 +62,37 @@ class _FeedbackPageState extends State<FeedbackPage> {
     }
   }
 
+  Future<void> _writeToTelegram(AppController c) async {
+    setState(() => _error = null);
+    final opened = await c.writeFeedbackToTelegram(
+      kind: _kind,
+      text: _text.text,
+      attach: _attach,
+    );
+    if (!mounted) return;
+    if (!opened) {
+      setState(
+        () => _error =
+            'Не удалось открыть Telegram. Обращение скопировано — вставьте его '
+            'в сообщения канала ${c.feedbackTelegramLink}',
+      );
+      return;
+    }
+    c.toasts.show(
+      const ToastData(
+        'Обращение скопировано — вставьте его в Telegram (Ctrl+V) и отправьте',
+        icon: LucideIcons.copy,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = AppScope.of(context);
     final p = context.palette;
     final sending = c.sendingFeedback;
     final available = c.feedbackAvailable;
+    final telegram = c.feedbackViaTelegram;
 
     return NcPage(
       header: appHeader(
@@ -75,8 +104,14 @@ class _FeedbackPageState extends State<FeedbackPage> {
       footer: appFooter(c),
       fab: NcFab(
         icon: LucideIcons.send,
-        label: sending ? 'Отправляю…' : 'Отправить',
-        onPressed: available && _textOk && !sending ? () => _send(c) : null,
+        label: telegram
+            ? 'Написать в Telegram'
+            : sending
+            ? 'Отправляю…'
+            : 'Отправить',
+        onPressed: available && _textOk && !sending
+            ? () => telegram ? _writeToTelegram(c) : _send(c)
+            : null,
       ),
       children: [
         ...importantRows(context, c),
@@ -85,8 +120,13 @@ class _FeedbackPageState extends State<FeedbackPage> {
         Appear(
           index: 1,
           child: Text(
-            'Обращение анонимное и попадёт прямо к разработчику. Ответить на него '
-            'нельзя — если что-то поправим, это будет в описании новой версии.',
+            telegram
+                ? 'Обращение скопируется, и откроются сообщения нашего канала в '
+                      'Telegram — вставьте его и отправьте от своего аккаунта. Его '
+                      'увидят только администраторы канала, ответим там же.'
+                : 'Обращение анонимное и попадёт прямо к разработчику. Ответить на '
+                      'него нельзя — если что-то поправим, это будет в описании '
+                      'новой версии.',
             style: NcType.body.copyWith(color: p.muted),
           ),
         ),
@@ -105,6 +145,12 @@ class _FeedbackPageState extends State<FeedbackPage> {
             kind: NoticeKind.danger,
             icon: LucideIcons.circleAlert,
             title: _error!,
+            action: !telegram && c.feedbackTelegramFallback
+                ? NcQuietButton(
+                    label: 'Написать в Telegram',
+                    onPressed: _textOk ? () => _writeToTelegram(c) : null,
+                  )
+                : null,
             onClose: () => setState(() => _error = null),
           ),
         ],
@@ -157,7 +203,9 @@ class _FeedbackPageState extends State<FeedbackPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Не указывайте имя, почту, телефон и другие личные данные.',
+                      telegram
+                          ? 'Не указывайте почту, телефон и другие личные данные.'
+                          : 'Не указывайте имя, почту, телефон и другие личные данные.',
                       style: NcType.caption.copyWith(color: p.muted),
                     ),
                   ],
