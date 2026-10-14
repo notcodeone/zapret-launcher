@@ -162,6 +162,42 @@ void main() {
     c.dispose();
   });
 
+  testWidgets(
+    'упал и выключили-включили до перезапуска — без лишнего запуска',
+    (tester) async {
+      final c = make();
+      await tester.runAsync(() async {
+        c.init();
+        await c.setTelegramProxy(true);
+        proxy.crash();
+        await c.setTelegramProxy(false);
+        await c.setTelegramProxy(true);
+        await Future<void>.delayed(const Duration(milliseconds: 2200));
+      });
+      expect(proxy.starts, hasLength(2));
+      expect(c.telegramState, TelegramProxyState.on);
+      await tester.runAsync(settle);
+      c.dispose();
+    },
+  );
+
+  testWidgets('упал и лаунчер закрывается — прокси не запускается снова', (
+    tester,
+  ) async {
+    final c = make();
+    await tester.runAsync(() async {
+      c.init();
+      await c.setTelegramProxy(true);
+      proxy.crash();
+      await c.prepareToQuit();
+      await Future<void>.delayed(const Duration(milliseconds: 2200));
+    });
+    expect(proxy.starts, hasLength(1));
+    expect(proxy.running, isFalse);
+    await tester.runAsync(settle);
+    c.dispose();
+  });
+
   testWidgets('страница Telegram: включённый прокси — кнопка «Подключить»', (
     tester,
   ) async {

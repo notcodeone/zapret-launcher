@@ -648,6 +648,7 @@ class AppController extends ChangeNotifier {
       ..onLog = null
       ..onStats = null
       ..onCrash = null;
+    _cancelTelegramRestart();
     unawaited(_telegram.stop());
     _feedback.close();
     _netWatch.stop();
@@ -888,6 +889,7 @@ class AppController extends ChangeNotifier {
 
   /// Выход: подбор стратегии останавливается, и zapret возвращается как был.
   Future<void> prepareToQuit() async {
+    _cancelTelegramRestart();
     await _telegram.stop();
     if (!probing) return;
     cancelAutoPick();
@@ -1486,6 +1488,15 @@ class AppController extends ChangeNotifier {
   bool _telegramStarting = false;
   final _telegramRestarts = <DateTime>[];
 
+  /// Перезапуск упавшего прокси через паузу; отменяется, если прокси выключили,
+  /// запустили вручную или лаунчер закрывается.
+  Timer? _telegramRestart;
+
+  void _cancelTelegramRestart() {
+    _telegramRestart?.cancel();
+    _telegramRestart = null;
+  }
+
   /// Строки прокси, уже записанные в журнал: каждый путь до DC — один раз.
   final _telegramSeen = <String>{};
 
@@ -1512,6 +1523,7 @@ class AppController extends ChangeNotifier {
   Future<void> setTelegramProxy(bool on) async {
     _saveSettings(_settings.copyWith(telegramProxy: on));
     _telegramRestarts.clear();
+    _cancelTelegramRestart();
     if (on) return _startTelegram();
     await _telegram.stop();
     _telegramState = TelegramProxyState.off;
@@ -1521,7 +1533,10 @@ class AppController extends ChangeNotifier {
   }
 
   /// Ещё раз — например, когда освободили порт.
-  Future<void> retryTelegramProxy() => _startTelegram();
+  Future<void> retryTelegramProxy() {
+    _cancelTelegramRestart();
+    return _startTelegram();
+  }
 
   Future<void> _startTelegram() async {
     if (_telegramStarting) return;
@@ -1580,7 +1595,9 @@ class AppController extends ChangeNotifier {
     _telegramRestarts.add(now);
     _telegramState = TelegramProxyState.starting;
     notifyListeners();
-    Timer(const Duration(seconds: 2), () {
+    _cancelTelegramRestart();
+    _telegramRestart = Timer(const Duration(seconds: 2), () {
+      _telegramRestart = null;
       if (_settings.telegramProxy) unawaited(_startTelegram());
     });
   }
