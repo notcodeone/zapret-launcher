@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:zapret_launcher/src/app.dart';
@@ -195,6 +196,42 @@ void main() {
     expect(proxy.starts, hasLength(1));
     expect(proxy.running, isFalse);
     await tester.runAsync(settle);
+    c.dispose();
+  });
+
+  testWidgets('«Экспериментальные функции»: прокси включается оттуда', (
+    tester,
+  ) async {
+    final c = make();
+    c.init();
+    tester.view.physicalSize = const Size(560, 900);
+    tester.view.devicePixelRatio = 1;
+    await tester.pumpWidget(ZapretLauncherApp(controller: c));
+    await tester.pumpAndSettle();
+    // Выключенный прокси на главной не показывается.
+    expect(find.text('Telegram'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(
+      ZapretLauncherApp(controller: c, initialRoute: '/settings/experimental'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Экспериментальные функции'), findsWidgets);
+    await tester.tap(find.byType(NcSwitch));
+    await tester.runAsync(settle);
+    await tester.pumpAndSettle();
+    expect(c.settings.telegramProxy, isTrue);
+    expect(proxy.starts, hasLength(1));
+    expect(c.telegramState, TelegramProxyState.on);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(ZapretLauncherApp(controller: c));
+    await tester.pumpAndSettle();
+    expect(find.text('Telegram'), findsOneWidget);
+    expect(find.text('Работает'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    tester.view.reset();
     c.dispose();
   });
 

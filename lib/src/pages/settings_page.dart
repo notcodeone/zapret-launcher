@@ -11,6 +11,7 @@ import 'common.dart';
 import 'diagnostics_page.dart';
 import 'feedback_page.dart';
 import 'networks_page.dart';
+import 'telegram_page.dart';
 
 /// Тихая кнопка под пояснением строки: текст кнопки стоит на одной линии с пояснением.
 Widget _inlineAction(String label, VoidCallback? onPressed) =>
@@ -185,6 +186,7 @@ enum SettingsSection {
   zapret('Zapret', LucideIcons.zap),
   network('Сеть', LucideIcons.globe),
   updates('Обновления', LucideIcons.refreshCw),
+  experimental('Экспериментальные функции', LucideIcons.flaskConical),
   feedback('Обратная связь', LucideIcons.messageSquareText);
 
   const SettingsSection(this.title, this.icon);
@@ -303,6 +305,10 @@ class SettingsPage extends StatelessWidget {
         return country == null
             ? 'Слежу за сетью'
             : 'Слежу за сетью · сейчас $country';
+      case SettingsSection.experimental:
+        return c.settings.telegramProxy
+            ? 'Прокси для Telegram включён'
+            : 'Прокси для Telegram';
       case SettingsSection.feedback:
         return 'Сообщить об ошибке или предложить улучшение';
       case SettingsSection.updates:
@@ -492,6 +498,7 @@ class SettingsSectionPage extends StatelessWidget {
       SettingsSection.zapret => _zapret(c),
       SettingsSection.network => _network(context, c),
       SettingsSection.updates => [_UpdatesCard(controller: c)],
+      SettingsSection.experimental => _experimental(context, c),
       SettingsSection.feedback => const <Widget>[],
     };
     return NcPage(
@@ -511,6 +518,44 @@ class SettingsSectionPage extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  // ── Экспериментальные функции ──
+
+  /// То, что ещё проверяем: по умолчанию выключено, включённое видно и на главной.
+  List<Widget> _experimental(BuildContext context, AppController c) {
+    final p = context.palette;
+    return [
+      Text(
+        'Функции, которые ещё проверяем: могут работать не у всех и меняться '
+        'от версии к версии. Если что-то не так — напишите в «Обратной связи».',
+        style: NcType.body.copyWith(color: p.muted),
+      ),
+      NcSettingsCard(
+        children: [
+          NcSettingRow(
+            title: 'Прокси для Telegram',
+            description:
+                'Для Telegram Desktop, когда он не грузится. Работает, пока '
+                'открыт лаунчер; включённый — «Telegram» на главной.',
+            trailing: NcSwitch(
+              value: c.settings.telegramProxy,
+              label: 'Прокси для Telegram',
+              onChanged: c.telegramState == TelegramProxyState.starting
+                  ? null
+                  : c.setTelegramProxy,
+            ),
+          ),
+          NcSettingRow(
+            title: 'Подключить в Telegram',
+            description: telegramLine(c),
+            trailing: Icon(LucideIcons.chevronRight, size: 20, color: p.muted),
+            onTap: () => Navigator.of(context)
+                .push(NcPageRoute<void>(builder: (_) => const TelegramPage())),
+          ),
+        ],
+      ),
+    ];
   }
 
   // ── Основные ──

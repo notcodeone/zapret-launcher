@@ -93,32 +93,36 @@ class HomePage extends StatelessWidget {
             ),
           ),
         ],
-        // Прокси для Telegram не зависит от zapret — виден и без него.
-        const SizedBox(height: NcSpace.gapCards),
-        Appear(
-          index: i++,
-          child: NcSettingsCard(
-            children: [
-              _NavRow(
-                icon: LucideIcons.send,
-                title: 'Telegram',
-                description: telegramLine(c),
-                below: switch (c.telegramState) {
-                  TelegramProxyState.on => const StatusLine(
-                    tone: Tone.success,
-                    text: 'Работает',
-                  ),
-                  TelegramProxyState.failed => const StatusLine(
-                    tone: Tone.danger,
-                    text: 'Не работает',
-                  ),
-                  _ => null,
-                },
-                page: const TelegramPage(),
-              ),
-            ],
+        // Прокси для Telegram — экспериментальная функция: на главной, только
+        // когда включён («Настройки» → «Экспериментальные функции»). От zapret
+        // не зависит — виден и без него.
+        if (c.settings.telegramProxy) ...[
+          const SizedBox(height: NcSpace.gapCards),
+          Appear(
+            index: i++,
+            child: NcSettingsCard(
+              children: [
+                _NavRow(
+                  icon: LucideIcons.send,
+                  title: 'Telegram',
+                  description: telegramLine(c),
+                  below: switch (c.telegramState) {
+                    TelegramProxyState.on => const StatusLine(
+                      tone: Tone.success,
+                      text: 'Работает',
+                    ),
+                    TelegramProxyState.failed => const StatusLine(
+                      tone: Tone.danger,
+                      text: 'Не работает',
+                    ),
+                    _ => null,
+                  },
+                  page: const TelegramPage(),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

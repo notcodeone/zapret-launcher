@@ -84,7 +84,8 @@ class _ZapretLauncherAppState extends State<ZapretLauncherApp> {
         onGenerateRoute: (settings) => NcPageRoute<void>(
           builder: (_) => switch (settings.name) {
             '/settings' => const SettingsPage(),
-            // /settings/general, /settings/zapret, /settings/network, /settings/updates.
+            // /settings/general, /settings/zapret, /settings/network, /settings/updates,
+            // /settings/experimental.
             final String name when name.startsWith('/settings/') =>
               settingsSectionPage(
                 SettingsSection.values.firstWhere(
