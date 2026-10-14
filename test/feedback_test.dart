@@ -195,7 +195,8 @@ void main() {
                 'retryAfter',
                 const Duration(minutes: 30),
               )
-              .having((e) => e.message, 'message', contains('30 минут')),
+              .having((e) => e.message, 'message', contains('30 минут'))
+              .having((e) => e.unavailable, 'unavailable', isFalse),
         ),
       );
     });
@@ -210,11 +211,13 @@ void main() {
         await expectLater(
           down.send(kind: FeedbackKind.bug, text: 'Текст'),
           throwsA(
-            isA<FeedbackException>().having(
-              (e) => e.message,
-              'message',
-              'Не удалось отправить обращение, попробуйте позже.',
-            ),
+            isA<FeedbackException>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'Не удалось отправить обращение, попробуйте позже.',
+                )
+                .having((e) => e.unavailable, 'unavailable', isTrue),
           ),
         );
         final offline = FeedbackClient(
@@ -223,7 +226,28 @@ void main() {
         );
         await expectLater(
           offline.send(kind: FeedbackKind.bug, text: 'Текст'),
-          throwsA(isA<FeedbackException>()),
+          throwsA(
+            isA<FeedbackException>().having(
+              (e) => e.unavailable,
+              'unavailable',
+              isTrue,
+            ),
+          ),
+        );
+        // На домене не сервер обращений — тоже недоступен.
+        final parked = FeedbackClient(
+          server: 'https://s',
+          client: MockClient((_) async => http.Response('<html>', 200)),
+        );
+        await expectLater(
+          parked.send(kind: FeedbackKind.bug, text: 'Текст'),
+          throwsA(
+            isA<FeedbackException>().having(
+              (e) => e.unavailable,
+              'unavailable',
+              isTrue,
+            ),
+          ),
         );
       },
     );
@@ -523,18 +547,27 @@ void main() {
       );
     });
 
-    testWidgets('сервер не ответил — рядом с ошибкой «Написать в Telegram»', (
-      tester,
+    /// Страница с текстом обращения; ссылки, которые открыл лаунчер, — в [opened].
+    Future<AppController> openPage(
+      WidgetTester tester,
+      _FakeServer server,
+      List<String> opened,
     ) async {
-      final server = _FakeServer()..reply = (_) => http.Response('oops', 502);
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (_) async => null,
+      );
       final c = make(
         server,
         telegram: FeedbackTelegram(
           channel: 'notcodeone',
-          open: (_, {required elevated}) => true,
+          hasApp: () => true,
+          open: (link, {required elevated}) {
+            opened.add(link);
+            return true;
+          },
         ),
       )..init();
-      expect(c.feedbackViaTelegram, isFalse);
       tester.view.physicalSize = const Size(560, 640);
       tester.view.devicePixelRatio = 1;
       await tester.pumpWidget(
@@ -543,27 +576,87 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'Discord не открывается');
       await tester.pump();
-      final fab = find.widgetWithText(NcFab, 'Отправить');
-      await tester.runAsync(() async {
-        tester.widget<NcFab>(fab).onPressed!();
-        while (c.sendingFeedback || server.posts.isEmpty) {
-          await Future<void>.delayed(const Duration(milliseconds: 20));
-        }
-      });
-      await tester.pump();
-      expect(
-        find.text('Не удалось отправить обращение, попробуйте позже.'),
-        findsOneWidget,
-      );
-      expect(
-        find.widgetWithText(NcQuietButton, 'Написать в Telegram'),
-        findsOneWidget,
-      );
+      return c;
+    }
 
+    Future<void> press(
+      WidgetTester tester,
+      String label,
+      bool Function() done,
+    ) => tester.runAsync(() async {
+      tester.widget<NcFab>(find.widgetWithText(NcFab, label)).onPressed!();
+      while (!done()) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+    });
+
+    Future<void> close(WidgetTester tester, AppController c) async {
       await tester.pumpWidget(const SizedBox());
       c.dispose();
       c.toasts.dispose();
       tester.view.reset();
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      );
+    }
+
+    testWidgets('сервер недоступен — обращение само уходит в Telegram', (
+      tester,
+    ) async {
+      final server = _FakeServer()..reply = (_) => http.Response('oops', 502);
+      final opened = <String>[];
+      final c = await openPage(tester, server, opened);
+      expect(c.feedbackViaTelegram, isFalse);
+
+      await press(tester, 'Отправить', () => opened.isNotEmpty);
+      await tester.pump();
+      expect(opened.single, 'tg://resolve?domain=notcodeone&direct');
+      expect(
+        find.text(
+          'Сервер обращений недоступен — обращение скопировано, вставьте '
+          'его в Telegram (Ctrl+V) и отправьте',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Не удалось отправить обращение, попробуйте позже.'),
+        findsNothing,
+      );
+
+      // До конца сессии — сразу в Telegram, сервер больше не ждём.
+      expect(c.feedbackViaTelegram, isTrue);
+      await press(tester, 'Написать в Telegram', () => opened.length == 2);
+      expect(server.challenges, 1);
+      expect(server.posts, hasLength(1));
+      await close(tester, c);
+    });
+
+    testWidgets('сервер отказал сам — его объяснение, без Telegram', (
+      tester,
+    ) async {
+      final server = _FakeServer()
+        ..reply = (_) => _json(429, {
+          'error': 'rate_limited',
+          'retryAfter': 1800,
+          'message': 'Слишком много обращений, попробуйте через 30 минут',
+        });
+      final opened = <String>[];
+      final c = await openPage(tester, server, opened);
+
+      await press(
+        tester,
+        'Отправить',
+        () => !c.sendingFeedback && server.posts.isNotEmpty,
+      );
+      await tester.pump();
+      expect(
+        find.text('Слишком много обращений, попробуйте через 30 минут'),
+        findsOneWidget,
+      );
+      expect(opened, isEmpty);
+      expect(c.feedbackViaTelegram, isFalse);
+      await close(tester, c);
     });
   });
 }

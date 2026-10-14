@@ -485,12 +485,13 @@ class AppController extends ChangeNotifier {
   bool get feedbackAvailable =>
       _feedback.configured || _feedbackTelegram.configured;
 
-  /// Сервера нет — обращение уходит в сообщения канала в Telegram.
-  bool get feedbackViaTelegram =>
-      !_feedback.configured && _feedbackTelegram.configured;
+  /// Сервер не ответил — до конца сессии обращения через Telegram, без ожидания.
+  bool _feedbackServerDown = false;
 
-  /// Сервер не ответил — можно написать в сообщения канала.
-  bool get feedbackTelegramFallback => _feedbackTelegram.configured;
+  /// Сервера нет или он недоступен — обращение уходит в сообщения канала.
+  bool get feedbackViaTelegram =>
+      _feedbackTelegram.configured &&
+      (!_feedback.configured || _feedbackServerDown);
 
   /// Канал для обращений — показываем, если Telegram не открылся.
   String get feedbackTelegramLink => _feedbackTelegram.webLink;
@@ -600,6 +601,12 @@ class AppController extends ChangeNotifier {
       );
       _journal('Отправлено обращение №$id');
       return id;
+    } on FeedbackException catch (e) {
+      if (e.unavailable && _feedbackTelegram.configured) {
+        _feedbackServerDown = true;
+        _journal('Сервер обращений недоступен — дальше через Telegram');
+      }
+      rethrow;
     } finally {
       _sendingFeedback = false;
       notifyListeners();

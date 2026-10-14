@@ -12,7 +12,7 @@ import 'settings_page.dart';
 /// сам отметил это и может посмотреть, что именно отправится. До нажатия
 /// «Отправить» лаунчер к серверу не обращается.
 ///
-/// Пока сервера нет — «Написать в Telegram»: обращение копируется в буфер обмена,
+/// Сервер недоступен — обращение само уходит в Telegram: копируется в буфер обмена,
 /// открываются сообщения канала, и человек отправляет его сам. Их видят только
 /// администраторы канала, поэтому сведения и журнал — по той же галочке.
 class FeedbackPage extends StatefulWidget {
@@ -58,11 +58,20 @@ class _FeedbackPageState extends State<FeedbackPage> {
         ToastData('Обращение №$id отправлено', icon: LucideIcons.send),
       );
     } on FeedbackException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (!mounted) return;
+      // Сервера нет — то же обращение сразу в Telegram, дальше кнопка ведёт туда.
+      if (e.unavailable && c.feedbackViaTelegram) {
+        await _writeToTelegram(c, serverDown: true);
+      } else {
+        setState(() => _error = e.message);
+      }
     }
   }
 
-  Future<void> _writeToTelegram(AppController c) async {
+  Future<void> _writeToTelegram(
+    AppController c, {
+    bool serverDown = false,
+  }) async {
     setState(() => _error = null);
     final opened = await c.writeFeedbackToTelegram(
       kind: _kind,
@@ -79,8 +88,11 @@ class _FeedbackPageState extends State<FeedbackPage> {
       return;
     }
     c.toasts.show(
-      const ToastData(
-        'Обращение скопировано — вставьте его в Telegram (Ctrl+V) и отправьте',
+      ToastData(
+        serverDown
+            ? 'Сервер обращений недоступен — обращение скопировано, вставьте '
+                  'его в Telegram (Ctrl+V) и отправьте'
+            : 'Обращение скопировано — вставьте его в Telegram (Ctrl+V) и отправьте',
         icon: LucideIcons.copy,
       ),
     );
@@ -145,12 +157,6 @@ class _FeedbackPageState extends State<FeedbackPage> {
             kind: NoticeKind.danger,
             icon: LucideIcons.circleAlert,
             title: _error!,
-            action: !telegram && c.feedbackTelegramFallback
-                ? NcQuietButton(
-                    label: 'Написать в Telegram',
-                    onPressed: _textOk ? () => _writeToTelegram(c) : null,
-                  )
-                : null,
             onClose: () => setState(() => _error = null),
           ),
         ],

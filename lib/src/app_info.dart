@@ -3,12 +3,15 @@ abstract final class AppInfo {
   static const version = '1.0.1';
 
   /// Сервер обращений из «Настройки» → «Обратная связь» (проект support-bot).
-  /// Адрес — при сборке: `--dart-define=FEEDBACK_SERVER=https://admin.notcode.one`.
-  /// Пока домен недоступен, по умолчанию пусто — обращения идут через Telegram.
-  static const feedbackServer = String.fromEnvironment('FEEDBACK_SERVER');
+  /// Не ответил — обращение уходит в сообщения канала ([feedbackTelegram]).
+  /// Другой адрес — при сборке: `--dart-define=FEEDBACK_SERVER=https://…`.
+  static const feedbackServer = String.fromEnvironment(
+    'FEEDBACK_SERVER',
+    defaultValue: 'https://admin.notcode.one',
+  );
 
   /// Канал в Telegram, в сообщения которого идут обращения, когда сервер не задан
-  /// или не ответил. Другой канал — при сборке: `--dart-define=FEEDBACK_TELEGRAM=…`.
+  /// или недоступен. Другой канал — при сборке: `--dart-define=FEEDBACK_TELEGRAM=…`.
   static const feedbackTelegram = String.fromEnvironment(
     'FEEDBACK_TELEGRAM',
     defaultValue: 'notcodeone',

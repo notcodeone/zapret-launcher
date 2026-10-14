@@ -12,11 +12,20 @@ import '../app_info.dart';
 enum FeedbackKind { bug, idea }
 
 class FeedbackException implements Exception {
-  const FeedbackException(this.message, {this.retryAfter});
+  const FeedbackException(
+    this.message, {
+    this.retryAfter,
+    this.unavailable = false,
+  });
 
   /// Можно показать человеку как есть.
   final String message;
   final Duration? retryAfter;
+
+  /// Сервер не ответил по делу: нет сети или домена, сбой, чужой ответ.
+  /// Тогда обращение можно отправить через Telegram; отказ самого сервера
+  /// (слишком часто, неверный текст) — нет.
+  final bool unavailable;
 
   @override
   String toString() => message;
@@ -28,6 +37,7 @@ const feedbackTextMax = 3000;
 const feedbackLogMax = 8000;
 
 const _failed = 'Не удалось отправить обращение, попробуйте позже.';
+const _unavailable = FeedbackException(_failed, unavailable: true);
 
 /// Убирает из текста имя пользователя, имя компьютера, пути профиля и адреса IPv4.
 /// Длинные значения заменяются раньше коротких: APPDATA лежит внутри USERPROFILE.
@@ -101,6 +111,9 @@ class FeedbackClient {
 
   static const _timeout = Duration(seconds: 15);
 
+  /// Задача — короткий ответ: если сервер недоступен, человек не ждёт долго.
+  static const _challengeTimeout = Duration(seconds: 8);
+
   /// Отправляет обращение и возвращает его номер.
   /// [details] — только поля из договорённости с сервером, значения String или bool.
   /// [log] — уже обезличенный журнал.
@@ -113,6 +126,7 @@ class FeedbackClient {
     if (!configured) {
       throw const FeedbackException(
         'Отправка обращений в этой сборке не настроена.',
+        unavailable: true,
       );
     }
     try {
@@ -120,14 +134,13 @@ class FeedbackClient {
       for (var attempt = 0; attempt < 2; attempt++) {
         final ch = await _http
             .get(Uri.parse('$server/v1/challenge'))
-            .timeout(_timeout);
+            .timeout(_challengeTimeout);
         if (ch.statusCode != 200) throw _error(ch);
         final task = _json(ch);
         final challenge = task['challenge'];
         final difficulty = task['difficulty'];
-        if (challenge is! String || difficulty is! int) {
-          throw const FeedbackException(_failed);
-        }
+        // Не задача — на домене сейчас не сервер обращений.
+        if (challenge is! String || difficulty is! int) throw _unavailable;
         final nonce = await Isolate.run(() => solvePow(challenge, difficulty));
 
         final res = await _http
@@ -159,7 +172,7 @@ class FeedbackClient {
       rethrow;
     } on Object {
       // Сеть, тайм-аут, сертификат — человеку всё равно, почему.
-      throw const FeedbackException(_failed);
+      throw _unavailable;
     }
   }
 
@@ -177,8 +190,10 @@ class FeedbackClient {
     final body = _json(r);
     final retry = body['retryAfter'];
     final message = body['message'];
+    // Сбой сервера или ответ без объяснения — не он отказал, а его нет.
+    if (r.statusCode >= 500 || message is! String) return _unavailable;
     return FeedbackException(
-      r.statusCode < 500 && message is String ? message : _failed,
+      message,
       retryAfter: retry is int ? Duration(seconds: retry) : null,
     );
   }
