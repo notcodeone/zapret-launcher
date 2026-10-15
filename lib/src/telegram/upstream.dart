@@ -157,14 +157,14 @@ class DirectTelegramConnector implements TelegramConnector {
     ]);
   }
 
+  /// WebSocket к веб-версии — только готовый из пула, как у tg-ws-proxy. Пусто —
+  /// сразу запасные пути, а пул пополняется в фоне: если веб-версия не отвечает,
+  /// новое подключение ждало бы её до 32 с, и Telegram сдавался бы раньше.
   @override
   Future<Upstream?> connect(TelegramTarget target) async {
     if (poolSize > 0 && _wsIp(target) != null) {
       final pooled = _pool.take(target);
       if (pooled != null) return pooled;
-      // В пуле пусто (только запустились или все разобраны) — открываем сразу.
-      final fresh = await _openDirect(target);
-      if (fresh != null) return fresh;
     }
     return await _worker(target) ??
         await _cloudflare(target) ??

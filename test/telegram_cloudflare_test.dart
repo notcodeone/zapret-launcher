@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -101,21 +102,27 @@ void main() {
     Future<Socket> noTcp(String ip) =>
         Future.error(const SocketException('нет'));
 
-    test('веб-версия не открылась — Cloudflare, домен запоминается', () async {
-      final opener = FakeOpener(ws.port, works: (h) => h.startsWith('kws'));
+    test('веб-версия не отвечает — сразу Cloudflare, без ожидания; домен запоминается', () async {
+      final opener = FakeOpener(ws.port);
       final domains = CloudflareDomains(['a.test', 'b.test'], Random(2));
       final c = DirectTelegramConnector(
         cloudflare: domains,
-        openWebSocket: opener.call,
+        // Веб-версия молчит (пакеты отбрасываются): пул так и не наполнится.
+        openWebSocket: (host, domain, {required path, sni, secure = true}) =>
+            host == '149.154.167.220'
+            ? Completer<(WebSocket, Socket?)>().future
+            : opener.call(host, domain, path: path, sni: sni, secure: secure),
         connectTcp: noTcp,
       );
-      final up = await c.connect(const TelegramTarget(2));
+      addTearDown(c.close);
+      c.warmup();
+      final up = await c
+          .connect(const TelegramTarget(2))
+          .timeout(const Duration(seconds: 2));
       expect(up!.route, 'Cloudflare');
       up.close();
-      // Сначала прямой WebSocket (с подменой имени и без), потом kws2.<домен>.
-      expect(opener.hosts.take(2), everyElement('149.154.167.220'));
-      expect(opener.hosts.last, startsWith('kws2.'));
-      expect(domains.forDc(2).first, opener.hosts.last.substring(5));
+      expect(opener.hosts.single, startsWith('kws2.'));
+      expect(domains.forDc(2).first, opener.hosts.single.substring(5));
     });
 
     test(
