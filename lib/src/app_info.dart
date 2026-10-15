@@ -1,6 +1,6 @@
 abstract final class AppInfo {
   static const name = 'ZapretLauncher';
-  static const version = '1.2.0';
+  static const version = '1.2.1';
 
   /// Сервер обращений из «Настройки» → «Обратная связь» (проект support-bot).
   /// Не ответил — обращение уходит в сообщения канала ([feedbackTelegram]).
