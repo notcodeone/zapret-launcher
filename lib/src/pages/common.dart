@@ -76,3 +76,20 @@ NcFooter appFooter(AppController c) => NcFooter(
         )
       : null,
 );
+
+/// Telegram Desktop закрыт — ссылка tg:// запустит его, поэтому сначала спрашиваем.
+/// [consequence] — что будет после запуска. true — можно открывать ссылку:
+/// Telegram уже открыт, не установлен (ссылка уйдёт в браузер) или человек согласился.
+Future<bool> confirmTelegramLaunch(
+  BuildContext context,
+  AppController c, {
+  required String consequence,
+}) async {
+  if (!c.telegramDesktopClosed) return true;
+  return showNcDialog(
+    context,
+    title: 'Запустить Telegram?',
+    message: 'Telegram Desktop закрыт. $consequence',
+    confirmLabel: 'Запустить',
+  );
+}

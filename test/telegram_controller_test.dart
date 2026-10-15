@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:zapret_launcher/src/app.dart';
 import 'package:zapret_launcher/src/controller.dart';
 import 'package:zapret_launcher/src/settings.dart';
+import 'package:zapret_launcher/src/telegram/desktop.dart';
 import 'package:zapret_launcher/src/telegram/telegram_proxy.dart';
 import 'package:zapret_launcher/src/ui/ui.dart';
 import 'package:zapret_launcher/src/zapret/bundle.dart';
@@ -51,13 +53,34 @@ class _IdleRunner extends ZapretRunner {
       const RuntimeStatus(processes: [], service: null, serviceStrategy: null);
 }
 
+/// Telegram Desktop понарошку: установлен ли, запущен ли и что открывали.
+class _FakeDesktop extends TelegramDesktop {
+  bool isInstalled = true;
+  bool isRunning = false;
+  final opened = <String>[];
+
+  @override
+  bool get installed => isInstalled;
+
+  @override
+  bool get running => isRunning;
+
+  @override
+  bool open(String link, {required bool elevated}) {
+    opened.add(link);
+    return true;
+  }
+}
+
 void main() {
   late Directory tmp;
   late _FakeProxy proxy;
+  late _FakeDesktop desktop;
 
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('zl-tg-');
     proxy = _FakeProxy();
+    desktop = _FakeDesktop();
   });
   tearDown(() => tmp.deleteSync(recursive: true));
 
@@ -76,6 +99,7 @@ void main() {
       bundle: ZapretBundle(Directory(p.join(tmp.path, 'no-bundle'))),
       builtinZapretDir: p.join(tmp.path, 'builtin'),
       telegramProxy: proxy,
+      telegramDesktop: desktop,
     );
   }
 
@@ -257,5 +281,76 @@ void main() {
     expect(c.telegramState, TelegramProxyState.off);
     expect(find.text('Подключить'), findsNothing);
     c.dispose();
+  });
+
+  group('«Подключить»', () {
+    Future<AppController> openPage(WidgetTester tester) async {
+      final c = make();
+      await tester.runAsync(() async {
+        c.init();
+        await c.setTelegramProxy(true);
+      });
+      await tester.pumpWidget(
+        ZapretLauncherApp(controller: c, initialRoute: '/telegram'),
+      );
+      await tester.pumpAndSettle();
+      return c;
+    }
+
+    testWidgets('Telegram закрыт — сначала спрашиваем, запускать ли', (
+      tester,
+    ) async {
+      final c = await openPage(tester);
+      await tester.tap(find.text('Подключить'));
+      await tester.pumpAndSettle();
+      expect(find.text('Запустить Telegram?'), findsOneWidget);
+
+      await tester.tap(find.text('Отмена'));
+      await tester.pumpAndSettle();
+      expect(desktop.opened, isEmpty);
+
+      await tester.tap(find.text('Подключить'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Запустить'));
+      await tester.pumpAndSettle();
+      expect(desktop.opened, [c.telegramLink]);
+      c.dispose();
+    });
+
+    testWidgets('Telegram открыт — ссылка сразу, без вопроса', (tester) async {
+      desktop.isRunning = true;
+      final c = await openPage(tester);
+      await tester.tap(find.text('Подключить'));
+      await tester.pumpAndSettle();
+      expect(find.text('Запустить Telegram?'), findsNothing);
+      expect(desktop.opened, [c.telegramLink]);
+      c.dispose();
+    });
+
+    testWidgets('Telegram Desktop не установлен — ссылка копируется', (
+      tester,
+    ) async {
+      String? copied;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String;
+          }
+          return null;
+        },
+      );
+      desktop.isInstalled = false;
+      final c = await openPage(tester);
+      await tester.tap(find.text('Подключить'));
+      await tester.pumpAndSettle();
+      expect(find.text('Запустить Telegram?'), findsNothing);
+      expect(desktop.opened, isEmpty);
+      expect(copied, c.telegramLink);
+      expect(find.textContaining('не найден'), findsOneWidget);
+      // Подсказка висит 6 секунд — дожидаемся, чтобы не осталось таймера.
+      await tester.pumpAndSettle(const Duration(seconds: 7));
+      c.dispose();
+    });
   });
 }

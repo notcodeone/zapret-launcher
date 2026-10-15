@@ -73,6 +73,22 @@ class _FeedbackPageState extends State<FeedbackPage> {
     bool serverDown = false,
   }) async {
     setState(() => _error = null);
+    final go = await confirmTelegramLaunch(
+      context,
+      c,
+      consequence:
+          'Если запустить, обращение скопируется и откроются сообщения канала — '
+          'останется вставить его и отправить.',
+    );
+    if (!mounted) return;
+    if (!go) {
+      if (serverDown) {
+        setState(
+          () => _error = 'Сервер обращений недоступен — отправьте обращение через Telegram.',
+        );
+      }
+      return;
+    }
     final opened = await c.writeFeedbackToTelegram(
       kind: _kind,
       text: _text.text,

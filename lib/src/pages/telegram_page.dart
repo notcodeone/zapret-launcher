@@ -111,7 +111,7 @@ class TelegramPage extends StatelessWidget {
                   trailing: NcButton(
                     label: 'Подключить',
                     icon: LucideIcons.send,
-                    onPressed: c.openTelegramLink,
+                    onPressed: () => _connect(context, c),
                   ),
                 ),
                 NcSettingRow(
@@ -168,10 +168,28 @@ class TelegramPage extends StatelessWidget {
     return parts.join(' · ');
   }
 
-  static Future<void> _copyLink(AppController c) async {
-    await Clipboard.setData(ClipboardData(text: c.telegramLink));
-    c.toasts.show(
-      const ToastData('Ссылка скопирована', icon: LucideIcons.copy),
+  /// Открывает ссылку в Telegram; закрытый — только с согласия, а без Telegram
+  /// Desktop ссылку открыть нечем — копируем её.
+  static Future<void> _connect(BuildContext context, AppController c) async {
+    if (!c.telegramDesktopInstalled) {
+      return _copyLink(
+        c,
+        'Telegram Desktop не найден. Ссылка скопирована — откройте её в Telegram',
+      );
+    }
+    final go = await confirmTelegramLaunch(
+      context,
+      c,
+      consequence: 'Если запустить, он спросит, подключить ли прокси.',
     );
+    if (go) c.openTelegramLink();
+  }
+
+  static Future<void> _copyLink(
+    AppController c, [
+    String message = 'Ссылка скопирована',
+  ]) async {
+    await Clipboard.setData(ClipboardData(text: c.telegramLink));
+    c.toasts.show(ToastData(message, icon: LucideIcons.copy));
   }
 }

@@ -19,6 +19,13 @@ const _INVALID_HANDLE_VALUE = -1;
 const _TH32CS_SNAPPROCESS = 0x2;
 const _PROCESS_TERMINATE = 0x0001;
 const _PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+const _PROCESS_QUERY_INFORMATION = 0x0400;
+const _TOKEN_DUPLICATE = 0x0002;
+// TOKEN_QUERY | TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_ADJUST_DEFAULT |
+// TOKEN_ADJUST_SESSIONID — что нужно токену для CreateProcessWithTokenW.
+const _TOKEN_PRIMARY_ACCESS = 0x018B;
+const _SecurityImpersonation = 2;
+const _TokenPrimary = 1;
 const _SYNCHRONIZE = 0x00100000;
 const _TOKEN_QUERY = 0x0008;
 const _TokenElevation = 20;
@@ -145,6 +152,52 @@ final class ENUM_SERVICE_STATUS_PROCESSW extends Struct {
   external int dwServiceFlags;
 }
 
+final class STARTUPINFOW extends Struct {
+  @Uint32()
+  external int cb;
+  external Pointer<Utf16> lpReserved;
+  external Pointer<Utf16> lpDesktop;
+  external Pointer<Utf16> lpTitle;
+  @Uint32()
+  external int dwX;
+  @Uint32()
+  external int dwY;
+  @Uint32()
+  external int dwXSize;
+  @Uint32()
+  external int dwYSize;
+  @Uint32()
+  external int dwXCountChars;
+  @Uint32()
+  external int dwYCountChars;
+  @Uint32()
+  external int dwFillAttribute;
+  @Uint32()
+  external int dwFlags;
+  @Uint16()
+  external int wShowWindow;
+  @Uint16()
+  external int cbReserved2;
+  external Pointer<Uint8> lpReserved2;
+  @IntPtr()
+  external int hStdInput;
+  @IntPtr()
+  external int hStdOutput;
+  @IntPtr()
+  external int hStdError;
+}
+
+final class PROCESS_INFORMATION extends Struct {
+  @IntPtr()
+  external int hProcess;
+  @IntPtr()
+  external int hThread;
+  @Uint32()
+  external int dwProcessId;
+  @Uint32()
+  external int dwThreadId;
+}
+
 final class OPENFILENAMEW extends Struct {
   @Uint32()
   external int lStructSize;
@@ -256,6 +309,53 @@ final _OpenProcessToken = _advapi32
       Int32 Function(IntPtr, Uint32, Pointer<IntPtr>),
       int Function(int, int, Pointer<IntPtr>)
     >('OpenProcessToken', isLeaf: true);
+final _DuplicateTokenEx = _advapi32
+    .lookupFunction<
+      Int32 Function(
+        IntPtr,
+        Uint32,
+        Pointer<Void>,
+        Int32,
+        Int32,
+        Pointer<IntPtr>,
+      ),
+      int Function(int, int, Pointer<Void>, int, int, Pointer<IntPtr>)
+    >('DuplicateTokenEx', isLeaf: true);
+final _CreateProcessWithTokenW = _advapi32
+    .lookupFunction<
+      Int32 Function(
+        IntPtr,
+        Uint32,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        Uint32,
+        Pointer<Void>,
+        Pointer<Utf16>,
+        Pointer<STARTUPINFOW>,
+        Pointer<PROCESS_INFORMATION>,
+      ),
+      int Function(
+        int,
+        int,
+        Pointer<Utf16>,
+        Pointer<Utf16>,
+        int,
+        Pointer<Void>,
+        Pointer<Utf16>,
+        Pointer<STARTUPINFOW>,
+        Pointer<PROCESS_INFORMATION>,
+      )
+    >('CreateProcessWithTokenW');
+final _GetShellWindow = _user32
+    .lookupFunction<IntPtr Function(), int Function()>(
+      'GetShellWindow',
+      isLeaf: true,
+    );
+final _GetWindowThreadProcessId = _user32
+    .lookupFunction<
+      Uint32 Function(IntPtr, Pointer<Uint32>),
+      int Function(int, Pointer<Uint32>)
+    >('GetWindowThreadProcessId', isLeaf: true);
 final _GetTokenInformation = _advapi32
     .lookupFunction<
       Int32 Function(IntPtr, Int32, Pointer<Void>, Uint32, Pointer<Uint32>),
@@ -619,6 +719,72 @@ bool shellExecute(
     return r > 32;
   });
 }
+
+/// Открывает ссылку от имени обычного пользователя, хотя лаунчер работает с правами
+/// администратора: rundll32 url.dll,FileProtocolHandler (тот же ShellExecute)
+/// запускается с токеном рабочего стола — процесса explorer.exe. Иначе программа,
+/// открытая по ссылке (Telegram), получила бы права администратора тоже.
+/// false — не вышло: нет рабочего стола или выключена служба «Вторичный вход в систему».
+bool shellExecuteAsUser(String link) {
+  return using((arena) {
+    final shell = _GetShellWindow();
+    if (shell == 0) return false;
+    final pid = arena<Uint32>();
+    _GetWindowThreadProcessId(shell, pid);
+    if (pid.value == 0) return false;
+    final process = _OpenProcess(_PROCESS_QUERY_INFORMATION, 0, pid.value);
+    if (process == 0) return false;
+    final token = arena<IntPtr>();
+    final primary = arena<IntPtr>();
+    try {
+      if (_OpenProcessToken(process, _TOKEN_DUPLICATE, token) == 0) {
+        return false;
+      }
+      final duplicated = _DuplicateTokenEx(
+        token.value,
+        _TOKEN_PRIMARY_ACCESS,
+        nullptr,
+        _SecurityImpersonation,
+        _TokenPrimary,
+        primary,
+      );
+      _CloseHandle(token.value);
+      if (duplicated == 0) return false;
+      try {
+        final root = Platform.environment['SystemRoot'] ?? r'C:\Windows';
+        final exe = '$root\\System32\\rundll32.exe';
+        final info = arena<STARTUPINFOW>()..ref.cb = sizeOf<STARTUPINFOW>();
+        final started = arena<PROCESS_INFORMATION>();
+        final ok = _CreateProcessWithTokenW(
+          primary.value,
+          0,
+          exe.toNativeUtf16(allocator: arena),
+          '"$exe" url.dll,FileProtocolHandler $link'.toNativeUtf16(
+            allocator: arena,
+          ),
+          0,
+          nullptr,
+          nullptr,
+          info,
+          started,
+        );
+        if (ok == 0) return false;
+        _CloseHandle(started.ref.hProcess);
+        _CloseHandle(started.ref.hThread);
+        return true;
+      } finally {
+        _CloseHandle(primary.value);
+      }
+    } finally {
+      _CloseHandle(process);
+    }
+  });
+}
+
+/// Ссылка в программе по умолчанию: с правами администратора — от имени обычного
+/// пользователя ([shellExecuteAsUser]), а не вышло — как есть, лишь бы открылась.
+bool openLink(String link, {required bool elevated}) =>
+    (elevated && shellExecuteAsUser(link)) || shellExecute(link);
 
 /// Перезапускает текущую программу от имени администратора.
 /// true — новый процесс запущен (текущий можно закрывать).

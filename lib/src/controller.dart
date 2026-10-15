@@ -14,6 +14,7 @@ import 'platform/autostart.dart';
 import 'platform/network_watch.dart';
 import 'platform/win32.dart' as win;
 import 'settings.dart';
+import 'telegram/desktop.dart';
 import 'telegram/telegram_proxy.dart';
 import 'updates/launcher_updates.dart';
 import 'ui/ui.dart';
@@ -57,7 +58,9 @@ class AppController extends ChangeNotifier {
     FeedbackClient? feedback,
     FeedbackTelegram? feedbackTelegram,
     TelegramProxy? telegramProxy,
-  }) : _feedback = feedback ?? FeedbackClient(),
+    TelegramDesktop? telegramDesktop,
+  }) : _telegramDesktop = telegramDesktop ?? const TelegramDesktop(),
+       _feedback = feedback ?? FeedbackClient(),
        _feedbackTelegram = feedbackTelegram ?? FeedbackTelegram(),
        _telegram = telegramProxy ?? TelegramProxy(),
        _bundle = bundle ?? ZapretBundle.app(),
@@ -1602,17 +1605,19 @@ class AppController extends ChangeNotifier {
     });
   }
 
+  final TelegramDesktop _telegramDesktop;
+
+  /// Telegram Desktop установлен — ссылку tg:// есть кому открыть.
+  bool get telegramDesktopInstalled => _telegramDesktop.installed;
+
+  /// Telegram Desktop установлен, но закрыт: ссылка запустит его — сначала спросим.
+  bool get telegramDesktopClosed =>
+      _telegramDesktop.installed && !_telegramDesktop.running;
+
   /// Открывает ссылку в Telegram Desktop — он спросит, подключить ли прокси.
-  /// Лаунчер работает с правами администратора, и запущенный им Telegram получил бы
-  /// их тоже; explorer.exe открывает ссылку от имени обычного пользователя.
-  void openTelegramLink() {
-    final link = telegramLink;
-    if (_elevated) {
-      Process.start('explorer.exe', [link]).ignore();
-    } else {
-      win.shellExecute(link);
-    }
-  }
+  /// От имени обычного пользователя: иначе Telegram получил бы права лаунчера.
+  void openTelegramLink() =>
+      _telegramDesktop.open(telegramLink, elevated: _elevated);
 
   // ── Обновления лаунчера ──
 

@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import '../app_info.dart';
 import '../platform/win32.dart' as win;
+import '../telegram/desktop.dart';
 import 'feedback.dart';
 
 /// Обращение через сообщения канала в Telegram — пока сервер поддержки недоступен.
@@ -15,7 +14,7 @@ class FeedbackTelegram {
     bool Function()? hasApp,
   }) : channel = _normalize(channel ?? AppInfo.feedbackTelegram),
        _open = open ?? _shellOpen,
-       _hasApp = hasApp ?? _tgRegistered;
+       _hasApp = hasApp ?? (() => const TelegramDesktop().installed);
 
   /// Публичное имя канала без «@»; пустое — не настроено.
   final String channel;
@@ -81,24 +80,7 @@ class FeedbackTelegram {
     return RegExp(r'^[A-Za-z0-9_]{4,32}$').hasMatch(s) ? s : '';
   }
 
-  /// Лаунчер работает с правами администратора, и запущенный им Telegram получил
-  /// бы их тоже; explorer.exe открывает ссылку от имени обычного пользователя.
-  static bool _shellOpen(String link, {required bool elevated}) {
-    if (!elevated) return win.shellExecute(link);
-    Process.start('explorer.exe', [link]).ignore();
-    return true;
-  }
-
-  /// Telegram Desktop при установке регистрирует протокол tg://.
-  static bool _tgRegistered() {
-    try {
-      return Process.runSync('reg', [
-            'query',
-            r'HKEY_CLASSES_ROOT\tg\shell\open\command',
-          ]).exitCode ==
-          0;
-    } on Object {
-      return false;
-    }
-  }
+  /// От имени обычного пользователя: иначе Telegram получил бы права лаунчера.
+  static bool _shellOpen(String link, {required bool elevated}) =>
+      win.openLink(link, elevated: elevated);
 }
