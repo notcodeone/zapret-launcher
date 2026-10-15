@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'config.dart' show defaultTelegramProxyPort;
 import 'mtproto.dart';
 import 'upstream.dart';
 
@@ -70,9 +71,11 @@ class TelegramProxyServer {
   TelegramProxyServer({
     required this.secret,
     this.host = '127.0.0.1',
-    this.port = 1443,
+    this.port = defaultTelegramProxyPort,
+    this.bufferBytes = 256 * 1024,
     TelegramConnector? connector,
     this.onLog,
+    this.onDetail,
     this.handshakeTimeout = const Duration(seconds: 10),
   }) : _connector = connector ?? DirectTelegramConnector() {
     if (secret.length != 16) {
@@ -83,11 +86,17 @@ class TelegramProxyServer {
   final Uint8List secret;
   final String host;
   final int port;
+
+  /// Буфер сокетов Telegram Desktop ↔ прокси (buf_kb у tg-ws-proxy).
+  final int bufferBytes;
   final TelegramConnector _connector;
   final Duration handshakeTimeout;
 
   /// Строки для журнала: подключения, ошибки.
   final void Function(String line)? onLog;
+
+  /// Только в файл лога: итог каждой сессии.
+  final void Function(String line)? onDetail;
 
   ServerSocket? _server;
   final _clients = <Socket>{};
@@ -153,6 +162,7 @@ class TelegramProxyServer {
 
   Future<void> _serve(Socket client) async {
     client.setOption(SocketOption.tcpNoDelay, true);
+    setSocketBuffers(client, bufferBytes);
     final Uint8List init;
     final Stream<Uint8List> rest;
     try {
@@ -187,13 +197,26 @@ class TelegramProxyServer {
       switch (up.route) {
         case 'TCP':
           _tcp++;
-        case 'Cloudflare':
+        case final r when r.startsWith('Cloudflare'):
           _cf++;
         default:
           _ws++;
       }
       _log('$target: ${up.route}');
-      await _bridge(client, rest, up, ciphers, hello.transport, relayInit);
+      final started = DateTime.now();
+      final (sent, received) = await _bridge(
+        client,
+        rest,
+        up,
+        ciphers,
+        hello.transport,
+        relayInit,
+      );
+      final seconds = DateTime.now().difference(started).inMilliseconds / 1000;
+      onDetail?.call(
+        '$target, ${up.route}: сессия закрыта — отправлено ${_size(sent)}, '
+        'получено ${_size(received)} за ${seconds.toStringAsFixed(1)} с',
+      );
     } finally {
       up?.close();
       ciphers.dispose();
@@ -201,7 +224,8 @@ class TelegramProxyServer {
   }
 
   /// Пересылка в обе стороны, пока одна из сторон не закроется.
-  Future<void> _bridge(
+  /// Итог — сколько байт отправлено в Telegram и получено от него.
+  Future<(int, int)> _bridge(
     Socket client,
     Stream<Uint8List> fromClient,
     Upstream up,
@@ -210,11 +234,14 @@ class TelegramProxyServer {
     Uint8List relayInit,
   ) async {
     final splitter = up.framed ? PacketSplitter(transport) : null;
+    var sent = 0;
+    var received = 0;
 
     Stream<Uint8List> outgoing() async* {
       yield relayInit;
       await for (final chunk in fromClient) {
         _up += chunk.length;
+        sent += chunk.length;
         if (splitter == null) {
           yield ciphers.upstream(chunk);
           continue;
@@ -236,6 +263,7 @@ class TelegramProxyServer {
     final toClient = client.addStream(
       up.incoming.map((data) {
         _down += data.length;
+        received += data.length;
         return ciphers.downstream(data);
       }),
     );
@@ -246,9 +274,16 @@ class TelegramProxyServer {
     }
     toTelegram.ignore();
     toClient.ignore();
+    return (sent, received);
   }
 
   void _log(String line) => onLog?.call(line);
+
+  static String _size(int bytes) => bytes < 1024
+      ? '$bytes Б'
+      : bytes < 1024 * 1024
+      ? '${(bytes / 1024).toStringAsFixed(1)} КБ'
+      : '${(bytes / 1024 / 1024).toStringAsFixed(1)} МБ';
 }
 
 /// Первые [length] байт потока и всё остальное — отдельным потоком. Пока остаток

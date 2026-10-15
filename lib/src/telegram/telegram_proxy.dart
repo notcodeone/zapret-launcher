@@ -4,15 +4,23 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:path/path.dart' as p;
+
 import 'aes_ctr.dart';
 import 'cloudflare.dart';
+import 'config.dart';
+import 'log_file.dart';
 import 'proxy_server.dart';
 import 'upstream.dart';
 
+export 'config.dart';
 export 'proxy_server.dart' show TelegramProxyStats;
 
-/// Порт прокси по умолчанию — как у tg-ws-proxy, чтобы инструкции совпадали.
-const defaultTelegramProxyPort = 1443;
+/// Файл лога прокси рядом с настройками лаунчера.
+String telegramLogPath() {
+  final appData = Platform.environment['APPDATA'] ?? Directory.systemTemp.path;
+  return p.join(appData, 'ZapretLauncher', 'telegram-proxy.log');
+}
 
 /// Новый секрет прокси: 16 случайных байт в hex.
 String generateTelegramSecret() {
@@ -29,8 +37,11 @@ bool isTelegramSecret(String? s) =>
 
 /// Ссылка, по которой Telegram Desktop сам добавит прокси. «dd» перед секретом —
 /// режим со случайной длиной пакетов, как у tg-ws-proxy.
-String telegramProxyLink({required int port, required String secret}) =>
-    'tg://proxy?server=127.0.0.1&port=$port&secret=dd$secret';
+String telegramProxyLink({
+  String host = '127.0.0.1',
+  required int port,
+  required String secret,
+}) => 'tg://proxy?server=$host&port=$port&secret=dd$secret';
 
 class TelegramProxyException implements Exception {
   const TelegramProxyException(this.message, {this.detail});
@@ -50,8 +61,13 @@ class TelegramProxy {
     this.onStats,
     this.onCrash,
     CloudflareSource? cloudflare,
+    String? logPath,
   }) : cloudflare =
-           cloudflare ?? CloudflareSource(cachePath: cloudflareCachePath());
+           cloudflare ?? CloudflareSource(cachePath: cloudflareCachePath()),
+       logPath = logPath ?? telegramLogPath();
+
+  /// Файл лога; пустая строка — без файла.
+  final String logPath;
 
   /// Откуда брать домены Cloudflare-прокси: скачиваются при каждом запуске.
   final CloudflareSource cloudflare;
@@ -76,8 +92,8 @@ class TelegramProxy {
 
   bool get running => _commands != null;
 
-  /// Запускает прокси и ждёт, пока он начнёт слушать порт.
-  Future<void> start({required String secret, required int port}) async {
+  /// Запускает прокси с [config] и ждёт, пока он начнёт слушать порт.
+  Future<void> start(TelegramProxyConfig config) async {
     if (_isolate != null) await stop();
     final messages = _messages = ReceivePort();
     final exit = _exit = ReceivePort();
@@ -124,10 +140,10 @@ class TelegramProxy {
       _proxyMain,
       [
         messages.sendPort,
-        secret,
-        port,
+        config.toJson(),
         cloudflare.url ?? '',
         cloudflare.cachePath ?? '',
+        logPath,
       ],
       onExit: exit.sendPort,
       onError: errors.sendPort,
@@ -175,37 +191,69 @@ class TelegramProxy {
   }
 }
 
-/// Точка входа изолята: [SendPort, секрет hex, порт, адрес списка Cloudflare,
-/// файл кэша] — пустые строки, если без них. Непойманная ошибка в одной сессии
-/// не должна ронять весь прокси — пишем её в журнал и работаем дальше.
+/// Точка входа изолята: [SendPort, настройки (toJson), адрес списка Cloudflare,
+/// файл кэша, файл лога] — пустые строки, если без них. Непойманная ошибка в одной
+/// сессии не должна ронять весь прокси — пишем её в журнал и работаем дальше.
 Future<void> _proxyMain(List<Object> args) async {
   final out = args[0] as SendPort;
   String? orNull(Object s) => s == '' ? null : s as String;
+  final config = TelegramProxyConfig.fromJson(args[1] as Map<Object?, Object?>);
+  final logPath = orNull(args[4]);
+  final file = logPath == null
+      ? null
+      : ProxyLogFile(logPath, maxBytes: config.logMaxMb * 1024 * 1024);
   await runZonedGuarded(
     () => _runProxy(
       out,
-      args[1] as String,
-      args[2] as int,
-      CloudflareSource(url: orNull(args[3]), cachePath: orNull(args[4])),
+      config,
+      CloudflareSource(url: orNull(args[2]), cachePath: orNull(args[3])),
+      file,
     ),
-    (e, _) => out.send(['log', 'Ошибка прокси: $e']),
+    (e, _) {
+      file?.write('Ошибка прокси: $e');
+      out.send(['log', 'Ошибка прокси: $e']);
+    },
   );
 }
 
 Future<void> _runProxy(
   SendPort out,
-  String secret,
-  int port,
+  TelegramProxyConfig config,
   CloudflareSource cloudflare,
+  ProxyLogFile? file,
 ) async {
-  void log(String line) => out.send(['log', line]);
-  final domains = CloudflareDomains();
-  final refresher = CloudflareRefresher(domains, cloudflare, onLog: log);
+  // В журнал лаунчера — главное; в файл — ещё итог каждой сессии, а с подробным
+  // логом — и каждая неудачная попытка подключения.
+  void log(String line) {
+    file?.write(line);
+    out.send(['log', line]);
+  }
+
+  void detail(String line) => file?.write(line);
+  final port = config.port;
+  final userDomains = config.userCloudflareDomains;
+  final domains = CloudflareDomains(userDomains);
+  // Свои домены — список tg-ws-proxy не нужен.
+  final refresher = config.cfproxy && userDomains.isEmpty
+      ? CloudflareRefresher(domains, cloudflare, onLog: log)
+      : null;
+  final connector = DirectTelegramConnector(
+    webSocketIps: config.webSocketIps,
+    cloudflare: config.cfproxy ? domains : null,
+    workerDomains: config.workerDomains,
+    noSecure: config.noSecure,
+    poolSize: config.poolSize,
+    bufferBytes: config.bufKb * 1024,
+    onDebug: config.verbose ? detail : null,
+  );
   final server = TelegramProxyServer(
-    secret: _hex(secret),
+    secret: _hex(config.secret),
+    host: config.host,
     port: port,
-    connector: DirectTelegramConnector(cloudflare: domains),
+    bufferBytes: config.bufKb * 1024,
+    connector: connector,
     onLog: log,
+    onDetail: detail,
   );
   try {
     await server.start();
@@ -217,8 +265,23 @@ Future<void> _runProxy(
           : 'Не удалось открыть порт $port',
       e.osError?.message ?? e.message,
     ]);
+    file?.write('Не удалось открыть ${config.host}:$port: $e');
+    file?.close();
     Isolate.exit();
   }
+
+  detail(
+    'Прокси запущен на ${config.host}:$port; DC → IP: '
+    '${config.webSocketIps.entries.map((e) => '${e.key}:${e.value}').join(', ')}; '
+    'пул ${config.poolSize}; CF-прокси '
+    '${!config.cfproxy
+        ? 'выключен'
+        : userDomains.isEmpty
+        ? 'по списку tg-ws-proxy'
+        : 'свои домены (${userDomains.length})'}; '
+    'CF Worker ${config.workerDomains.isEmpty ? 'выключен' : 'доменов ${config.workerDomains.length}'}'
+    '${config.noSecure ? '; без TLS' : ''}; буфер ${config.bufKb} КБ',
+  );
 
   if (Platform.isWindows) {
     log(
@@ -228,8 +291,9 @@ Future<void> _runProxy(
     );
   }
 
-  // Порт открыт — теперь домены: из кэша сразу, свежие — в фоне.
-  refresher.start();
+  // Порт открыт — теперь домены (из кэша сразу, свежие — в фоне) и пул WebSocket.
+  refresher?.start();
+  connector.warmup();
   final commands = ReceivePort();
   out.send(['ready', commands.sendPort]);
   var last = '';
@@ -244,8 +308,10 @@ Future<void> _runProxy(
     if (cmd == 'stop') break;
   }
   timer.cancel();
-  refresher.stop();
+  refresher?.stop();
   await server.stop();
+  detail('Прокси остановлен');
+  file?.close();
   Isolate.exit();
 }
 

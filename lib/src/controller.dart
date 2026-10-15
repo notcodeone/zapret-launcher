@@ -1509,18 +1509,41 @@ class AppController extends ChangeNotifier {
   AppError? get telegramError => _telegramError;
   TelegramProxyStats get telegramStats => _telegram.stats;
 
-  /// Ссылка для Telegram Desktop; секрет создаётся при первом обращении.
-  String get telegramLink => telegramProxyLink(
-    port: _settings.telegramPort,
-    secret: _telegramSecret(),
-  );
-
-  String _telegramSecret() {
-    final s = _settings.telegramSecret;
-    if (s != null && isTelegramSecret(s)) return s;
-    final fresh = generateTelegramSecret();
-    _saveSettings(_settings.copyWith(telegramSecret: fresh));
+  /// Настройки прокси; ключ создаётся при первом обращении.
+  TelegramProxyConfig get telegramConfig {
+    final config = _settings.telegram;
+    if (isTelegramSecret(config.secret)) return config;
+    final fresh = config.copyWith(secret: generateTelegramSecret());
+    _saveSettings(_settings.copyWith(telegram: fresh));
     return fresh;
+  }
+
+  /// Ссылка для Telegram Desktop на этом компьютере.
+  String get telegramLink {
+    final config = telegramConfig;
+    return telegramProxyLink(
+      host: config.linkHost,
+      port: config.port,
+      secret: config.secret,
+    );
+  }
+
+  /// Сохраняет настройки прокси; работающий прокси перезапускается с ними.
+  Future<void> setTelegramConfig(TelegramProxyConfig config) async {
+    _saveSettings(_settings.copyWith(telegram: config));
+    _journal('Настройки прокси для Telegram сохранены');
+    notifyListeners();
+    if (!_settings.telegramProxy) return;
+    _cancelTelegramRestart();
+    await _telegram.stop();
+    await _startTelegram();
+  }
+
+  /// Файл лога прокси (как «Открыть логи» у tg-ws-proxy); false — его ещё нет.
+  bool openTelegramLog() {
+    final path = _telegram.logPath;
+    if (path.isEmpty || !File(path).existsSync()) return false;
+    return win.openLink(path, elevated: _elevated);
   }
 
   Future<void> setTelegramProxy(bool on) async {
@@ -1547,9 +1570,10 @@ class AppController extends ChangeNotifier {
     _telegramState = TelegramProxyState.starting;
     _telegramError = null;
     notifyListeners();
-    final port = _settings.telegramPort;
+    final config = telegramConfig;
+    final port = config.port;
     try {
-      await _telegram.start(secret: _telegramSecret(), port: port);
+      await _telegram.start(config);
       _telegramSeen.clear();
       if (_settings.telegramProxy) {
         _telegramState = TelegramProxyState.on;

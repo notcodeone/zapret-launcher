@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 
 import 'location/profiles.dart';
+import 'telegram/config.dart';
 
 /// Откуда zapret: встроенный в лаунчер или своя папка пользователя.
 enum ZapretSource {
@@ -34,8 +35,7 @@ class AppSettings {
     this.autoUpdateZapret = true,
     this.skippedZapretVersion,
     this.telegramProxy = false,
-    this.telegramSecret,
-    this.telegramPort = 1443,
+    this.telegram = const TelegramProxyConfig(),
   });
 
   /// Откуда zapret; null — настройки от версии без встроенного zapret (решит контроллер).
@@ -83,12 +83,9 @@ class AppSettings {
   /// Прокси для Telegram Desktop включён: работает, пока открыт лаунчер.
   final bool telegramProxy;
 
-  /// Секрет прокси (32 hex-символа): он в ссылке, сохранённой в Telegram, поэтому
-  /// не меняется между запусками.
-  final String? telegramSecret;
-
-  /// Порт прокси на 127.0.0.1.
-  final int telegramPort;
+  /// Настройки прокси — как config.json у tg-ws-proxy. Ключ в них — в ссылке,
+  /// сохранённой в Telegram, поэтому сам по себе не меняется.
+  final TelegramProxyConfig telegram;
 
   AppSettings copyWith({
     ZapretSource? zapretSource,
@@ -107,8 +104,7 @@ class AppSettings {
     bool? autoUpdateZapret,
     String? skippedZapretVersion,
     bool? telegramProxy,
-    String? telegramSecret,
-    int? telegramPort,
+    TelegramProxyConfig? telegram,
   }) => AppSettings(
     zapretSource: zapretSource ?? this.zapretSource,
     zapretDir: zapretDir ?? this.zapretDir,
@@ -126,8 +122,7 @@ class AppSettings {
     autoUpdateZapret: autoUpdateZapret ?? this.autoUpdateZapret,
     skippedZapretVersion: skippedZapretVersion ?? this.skippedZapretVersion,
     telegramProxy: telegramProxy ?? this.telegramProxy,
-    telegramSecret: telegramSecret ?? this.telegramSecret,
-    telegramPort: telegramPort ?? this.telegramPort,
+    telegram: telegram ?? this.telegram,
   );
 
   Map<String, Object?> toJson() => {
@@ -147,8 +142,7 @@ class AppSettings {
     'autoUpdateZapret': autoUpdateZapret,
     'skippedZapretVersion': skippedZapretVersion,
     'telegramProxy': telegramProxy,
-    'telegramSecret': telegramSecret,
-    'telegramPort': telegramPort,
+    'telegram': telegram.toJson(),
   };
 
   factory AppSettings.fromJson(Map<String, Object?> json) => AppSettings(
@@ -177,8 +171,10 @@ class AppSettings {
     autoUpdateZapret: json['autoUpdateZapret'] as bool? ?? true,
     skippedZapretVersion: json['skippedZapretVersion'] as String?,
     telegramProxy: json['telegramProxy'] as bool? ?? false,
-    telegramSecret: json['telegramSecret'] as String?,
-    telegramPort: json['telegramPort'] as int? ?? 1443,
+    // До настроек как у tg-ws-proxy был только ключ; порт брался по умолчанию.
+    telegram: json['telegram'] is Map
+        ? TelegramProxyConfig.fromJson(json['telegram'] as Map)
+        : TelegramProxyConfig(secret: json['telegramSecret'] as String? ?? ''),
   );
 }
 

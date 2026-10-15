@@ -18,6 +18,7 @@ import 'helpers.dart';
 /// Прокси понарошку: без изолята и сокетов, порт можно «занять».
 class _FakeProxy extends TelegramProxy {
   final starts = <(String, int)>[];
+  final configs = <TelegramProxyConfig>[];
   int stops = 0;
   bool portBusy = false;
   bool _running = false;
@@ -26,10 +27,13 @@ class _FakeProxy extends TelegramProxy {
   bool get running => _running;
 
   @override
-  Future<void> start({required String secret, required int port}) async {
-    starts.add((secret, port));
+  Future<void> start(TelegramProxyConfig config) async {
+    starts.add((config.secret, config.port));
+    configs.add(config);
     if (portBusy) {
-      throw TelegramProxyException('Порт $port занят другой программой');
+      throw TelegramProxyException(
+        'Порт ${config.port} занят другой программой',
+      );
     }
     _running = true;
   }
@@ -115,10 +119,10 @@ void main() {
       await c.setTelegramProxy(true);
     });
     expect(c.telegramState, TelegramProxyState.on);
-    final secret = store().load().telegramSecret!;
+    final secret = store().load().telegram.secret;
     expect(isTelegramSecret(secret), isTrue);
-    expect(proxy.starts, [(secret, 1443)]);
-    expect(c.telegramLink, endsWith('port=1443&secret=dd$secret'));
+    expect(proxy.starts, [(secret, 1080)]);
+    expect(c.telegramLink, endsWith('port=1080&secret=dd$secret'));
     expect(store().load().telegramProxy, isTrue);
 
     await tester.runAsync(() => c.setTelegramProxy(false));
@@ -126,7 +130,7 @@ void main() {
     expect(proxy.stops, 1);
     expect(store().load().telegramProxy, isFalse);
     // Секрет остаётся: ссылка в Telegram не устареет.
-    expect(store().load().telegramSecret, secret);
+    expect(store().load().telegram.secret, secret);
     await tester.runAsync(settle);
     c.dispose();
   });
@@ -136,13 +140,16 @@ void main() {
   ) async {
     const secret = '00112233445566778899aabbccddeeff';
     final c = make(
-      const AppSettings(telegramProxy: true, telegramSecret: secret),
+      const AppSettings(
+        telegramProxy: true,
+        telegram: TelegramProxyConfig(secret: secret),
+      ),
     );
     await tester.runAsync(() async {
       c.init();
       await settle();
     });
-    expect(proxy.starts, [(secret, 1443)]);
+    expect(proxy.starts, [(secret, 1080)]);
     expect(c.telegramState, TelegramProxyState.on);
     c.dispose();
   });
@@ -241,7 +248,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Экспериментальные функции'), findsWidgets);
-    await tester.tap(find.byType(NcSwitch));
+    // Каждая функция — своя страница.
+    await tester.tap(find.text('Прокси для Telegram'));
+    await tester.pumpAndSettle();
+    expect(find.text('Подключение MTProto'), findsOneWidget);
+    await tester.tap(find.byType(NcSwitch).first);
     await tester.runAsync(settle);
     await tester.pumpAndSettle();
     expect(c.settings.telegramProxy, isTrue);
@@ -271,11 +282,11 @@ void main() {
       ZapretLauncherApp(controller: c, initialRoute: '/telegram'),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Прокси для Telegram'), findsOneWidget);
+    expect(find.text('Прокси для Telegram'), findsWidgets);
     expect(find.text('Подключить'), findsOneWidget);
-    expect(find.textContaining('127.0.0.1:1443'), findsWidgets);
+    expect(find.textContaining('127.0.0.1:1080'), findsWidgets);
 
-    await tester.tap(find.byType(NcSwitch));
+    await tester.tap(find.byType(NcSwitch).first);
     await tester.runAsync(settle);
     await tester.pumpAndSettle();
     expect(c.telegramState, TelegramProxyState.off);
@@ -349,6 +360,100 @@ void main() {
       expect(copied, c.telegramLink);
       expect(find.textContaining('не найден'), findsOneWidget);
       // Подсказка висит 6 секунд — дожидаемся, чтобы не осталось таймера.
+      await tester.pumpAndSettle(const Duration(seconds: 7));
+      c.dispose();
+    });
+  });
+
+  group('настройки как у TG WS Proxy', () {
+    testWidgets('прежние настройки: ключ остаётся, порт — 1080', (
+      tester,
+    ) async {
+      File(p.join(tmp.path, 's.json')).writeAsStringSync(
+        '{"telegramProxy": true, '
+        '"telegramSecret": "00112233445566778899aabbccddeeff", '
+        '"telegramPort": 1443}',
+      );
+      final s = store().load();
+      expect(s.telegram.secret, '00112233445566778899aabbccddeeff');
+      expect(s.telegram.port, 1080);
+      expect(s.telegram.poolSize, 4);
+      expect(s.telegram.dcIp, defaultTelegramDcIp);
+    });
+
+    testWidgets('сохранение: прокси перезапускается с новыми настройками', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(700, 2600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final c = make();
+      await tester.runAsync(() async {
+        c.init();
+        await c.setTelegramProxy(true);
+      });
+      await tester.pumpWidget(
+        ZapretLauncherApp(controller: c, initialRoute: '/telegram'),
+      );
+      await tester.pumpAndSettle();
+      // Без изменений кнопки «Сохранить» нет.
+      expect(find.text('Сохранить'), findsNothing);
+
+      final port = find.byWidgetPredicate(
+        (w) => w is NcTextField && w.label == 'Порт',
+      );
+      await tester.enterText(
+        find.descendant(of: port, matching: find.byType(TextField)),
+        '1090',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Сохранить'));
+      await tester.runAsync(settle);
+      await tester.pumpAndSettle();
+
+      expect(c.settings.telegram.port, 1090);
+      expect(store().load().telegram.port, 1090);
+      expect(proxy.configs.last.port, 1090);
+      expect(proxy.starts, hasLength(2));
+      expect(c.telegramLink, contains('port=1090&'));
+      expect(find.text('Сохранить'), findsNothing);
+      // Порт в ссылке поменялся — подсказка подключить заново.
+      expect(
+        find.textContaining('подключите прокси в Telegram заново'),
+        findsOneWidget,
+      );
+      await tester.pumpAndSettle(const Duration(seconds: 7));
+      c.dispose();
+    });
+
+    testWidgets('неверный ключ — ошибка под полем, не сохраняется', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(700, 2600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final c = make();
+      await tester.runAsync(() async => c.init());
+      await tester.pumpWidget(
+        ZapretLauncherApp(controller: c, initialRoute: '/telegram'),
+      );
+      await tester.pumpAndSettle();
+      final before = c.telegramConfig.secret;
+      final secret = find.byWidgetPredicate(
+        (w) => w is NcTextField && w.label == 'Ключ',
+      );
+      await tester.enterText(
+        find.descendant(of: secret, matching: find.byType(TextField)),
+        'xyz',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Сохранить'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Ключ должен содержать ровно 32 hex-символа (16 байт).'),
+        findsOneWidget,
+      );
+      expect(c.settings.telegram.secret, before);
       await tester.pumpAndSettle(const Duration(seconds: 7));
       c.dispose();
     });

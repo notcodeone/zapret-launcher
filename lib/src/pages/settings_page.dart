@@ -522,9 +522,11 @@ class SettingsSectionPage extends StatelessWidget {
 
   // ── Экспериментальные функции ──
 
-  /// То, что ещё проверяем: по умолчанию выключено, включённое видно и на главной.
+  /// То, что ещё проверяем: список функций, у каждой — своя страница. По умолчанию
+  /// всё выключено, включённое видно и на главной.
   List<Widget> _experimental(BuildContext context, AppController c) {
     final p = context.palette;
+    final config = c.settings.telegram;
     return [
       Text(
         'Функции, которые ещё проверяем: могут работать не у всех и меняться '
@@ -534,21 +536,31 @@ class SettingsSectionPage extends StatelessWidget {
       NcSettingsCard(
         children: [
           NcSettingRow(
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: p.field),
+              child: Icon(LucideIcons.send, size: 18, color: p.text),
+            ),
             title: 'Прокси для Telegram',
             description:
-                'Для Telegram Desktop, когда он не грузится. Работает, пока '
-                'открыт лаунчер; включённый — «Telegram» на главной.',
-            trailing: NcSwitch(
-              value: c.settings.telegramProxy,
-              label: 'Прокси для Telegram',
-              onChanged: c.telegramState == TelegramProxyState.starting
-                  ? null
-                  : c.setTelegramProxy,
-            ),
-          ),
-          NcSettingRow(
-            title: 'Подключить в Telegram',
-            description: telegramLine(c),
+                'TG WS Proxy внутри лаунчера — для Telegram Desktop, когда он не '
+                'грузится. Включение, подключение и настройки.',
+            below: switch (c.telegramState) {
+              TelegramProxyState.on => StatusLine(
+                tone: Tone.success,
+                text: 'Работает на ${config.linkHost}:${config.port}',
+              ),
+              TelegramProxyState.starting => const StatusLine(
+                tone: Tone.warning,
+                text: 'Запускается…',
+              ),
+              TelegramProxyState.failed => StatusLine(
+                tone: Tone.danger,
+                text: c.telegramError?.title ?? 'Не работает',
+              ),
+              TelegramProxyState.off => null,
+            },
             trailing: Icon(LucideIcons.chevronRight, size: 20, color: p.muted),
             onTap: () => Navigator.of(context)
                 .push(NcPageRoute<void>(builder: (_) => const TelegramPage())),

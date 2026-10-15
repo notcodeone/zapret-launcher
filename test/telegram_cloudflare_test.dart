@@ -28,13 +28,19 @@ class FakeOpener {
   final bool Function(String host) works;
   final hosts = <String>[];
 
-  Future<(WebSocket, SecureSocket?)> call(
+  final paths = <String>[];
+  final secure = <bool>[];
+
+  Future<(WebSocket, Socket?)> call(
     String host,
     String domain, {
     required String path,
     String? sni,
+    bool secure = true,
   }) async {
     hosts.add(host);
+    paths.add(path);
+    this.secure.add(secure);
     if (!works(host)) throw const SocketException('сброс');
     return (await WebSocket.connect('ws://127.0.0.1:$port$path'), null);
   }

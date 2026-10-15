@@ -373,8 +373,18 @@ void main() {
 
     test('запускается, слушает порт и останавливается', () async {
       final port = await freePort();
-      final proxy = TelegramProxy(cloudflare: const CloudflareSource.off());
-      await proxy.start(secret: generateTelegramSecret(), port: port);
+      final proxy = TelegramProxy(
+        cloudflare: const CloudflareSource.off(),
+        logPath: '',
+      );
+      await proxy.start(
+        TelegramProxyConfig(
+          secret: generateTelegramSecret(),
+          port: port,
+          poolSize: 0,
+          cfproxy: false,
+        ),
+      );
       expect(proxy.running, isTrue);
       final socket = await Socket.connect('127.0.0.1', port);
       socket.destroy();
@@ -388,9 +398,19 @@ void main() {
     test('порт занят — понятная ошибка', () async {
       final busy = await ServerSocket.bind('127.0.0.1', 0);
       addTearDown(busy.close);
-      final proxy = TelegramProxy(cloudflare: const CloudflareSource.off());
+      final proxy = TelegramProxy(
+        cloudflare: const CloudflareSource.off(),
+        logPath: '',
+      );
       await expectLater(
-        proxy.start(secret: generateTelegramSecret(), port: busy.port),
+        proxy.start(
+          TelegramProxyConfig(
+            secret: generateTelegramSecret(),
+            port: busy.port,
+            poolSize: 0,
+            cfproxy: false,
+          ),
+        ),
         throwsA(
           isA<TelegramProxyException>().having(
             (e) => e.message,
