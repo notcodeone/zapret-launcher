@@ -615,7 +615,12 @@ class _TelegramPageState extends State<TelegramPage> {
       c,
       consequence: 'Если запустить, он спросит, подключить ли прокси.',
     );
-    if (go) c.openTelegramLink();
+    if (go && !c.openTelegramLink()) {
+      return _copyLink(
+        c,
+        'Не удалось открыть Telegram. Ссылка скопирована — откройте её в Telegram',
+      );
+    }
   }
 
   static Future<void> _copyLink(

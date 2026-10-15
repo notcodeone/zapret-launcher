@@ -29,6 +29,7 @@ const _TokenPrimary = 1;
 const _SYNCHRONIZE = 0x00100000;
 const _TOKEN_QUERY = 0x0008;
 const _TokenElevation = 20;
+const _TokenUser = 1;
 
 const _SC_MANAGER_CONNECT = 0x0001;
 const _SC_MANAGER_CREATE_SERVICE = 0x0002;
@@ -47,6 +48,7 @@ const _SC_ACTION_RESTART = 1;
 
 const _HKEY_LOCAL_MACHINE = 0x80000002;
 const _HKEY_CURRENT_USER = 0x80000001;
+const _HKEY_USERS = 0x80000003;
 const _KEY_READ = 0x20019;
 const _REG_SZ = 1;
 const _RRF_RT_REG_DWORD = 0x10;
@@ -298,6 +300,16 @@ final _QueryFullProcessImageNameW = _kernel32
       Int32 Function(IntPtr, Uint32, Pointer<Utf16>, Pointer<Uint32>),
       int Function(int, int, Pointer<Utf16>, Pointer<Uint32>)
     >('QueryFullProcessImageNameW', isLeaf: true);
+final _ProcessIdToSessionId = _kernel32
+    .lookupFunction<
+      Int32 Function(Uint32, Pointer<Uint32>),
+      int Function(int, Pointer<Uint32>)
+    >('ProcessIdToSessionId', isLeaf: true);
+final _LocalFree = _kernel32
+    .lookupFunction<IntPtr Function(Pointer<Void>), int Function(Pointer<Void>)>(
+      'LocalFree',
+      isLeaf: true,
+    );
 final _GetCurrentProcess = _kernel32
     .lookupFunction<IntPtr Function(), int Function()>(
       'GetCurrentProcess',
@@ -361,6 +373,11 @@ final _GetTokenInformation = _advapi32
       Int32 Function(IntPtr, Int32, Pointer<Void>, Uint32, Pointer<Uint32>),
       int Function(int, int, Pointer<Void>, int, Pointer<Uint32>)
     >('GetTokenInformation', isLeaf: true);
+final _ConvertSidToStringSidW = _advapi32
+    .lookupFunction<
+      Int32 Function(Pointer<Void>, Pointer<Pointer<Utf16>>),
+      int Function(Pointer<Void>, Pointer<Pointer<Utf16>>)
+    >('ConvertSidToStringSidW', isLeaf: true);
 
 final _OpenSCManagerW = _advapi32
     .lookupFunction<
@@ -654,6 +671,17 @@ String? processImagePath(int pid) {
   }
 }
 
+/// Сеанс входа, в котором работает процесс, или null, если Windows не ответила.
+/// У каждого вошедшего пользователя свой сеанс.
+int? processSessionId(int pid) {
+  final session = calloc<Uint32>();
+  try {
+    return _ProcessIdToSessionId(pid, session) != 0 ? session.value : null;
+  } finally {
+    calloc.free(session);
+  }
+}
+
 /// Завершает процесс и ждёт до [timeoutMs] мс, пока он закроется.
 void terminateProcess(int pid, {int timeoutMs = 3000}) {
   final h = _OpenProcess(_PROCESS_TERMINATE | _SYNCHRONIZE, 0, pid);
@@ -720,19 +748,104 @@ bool shellExecute(
   });
 }
 
+/// Процесс рабочего стола (explorer.exe) или 0, если его нет.
+int _shellProcessId(Arena arena) {
+  final shell = _GetShellWindow();
+  if (shell == 0) return 0;
+  final pid = arena<Uint32>();
+  _GetWindowThreadProcessId(shell, pid);
+  return pid.value;
+}
+
+/// Пользователь, который сидит за компьютером: владелец рабочего стола.
+/// [sid] — его раздел в HKEY_USERS, [session] — его сеанс входа.
+class DesktopUser {
+  const DesktopUser(this.sid, this.session);
+
+  final String sid;
+  final int session;
+}
+
+/// Владелец рабочего стола. Не всегда тот же, от чьего имени работает лаунчер:
+/// при запросе прав администратора можно ввести пароль другой учётной записи,
+/// и тогда HKEY_CURRENT_USER и %APPDATA% лаунчера — чужие. null — рабочего стола нет.
+DesktopUser? desktopUser() {
+  return using((arena) {
+    final pid = _shellProcessId(arena);
+    if (pid == 0) return null;
+    final session = processSessionId(pid);
+    if (session == null) return null;
+    final process = _OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+    if (process == 0) return null;
+    final token = arena<IntPtr>();
+    try {
+      if (_OpenProcessToken(process, _TOKEN_QUERY, token) == 0) return null;
+      try {
+        final size = arena<Uint32>();
+        _GetTokenInformation(token.value, _TokenUser, nullptr, 0, size);
+        if (size.value == 0) return null;
+        final info = arena<Uint8>(size.value);
+        if (_GetTokenInformation(
+              token.value,
+              _TokenUser,
+              info.cast(),
+              size.value,
+              size,
+            ) ==
+            0) {
+          return null;
+        }
+        // TOKEN_USER начинается с указателя на SID.
+        final sid = info.cast<Pointer<Void>>().value;
+        final text = arena<Pointer<Utf16>>();
+        if (_ConvertSidToStringSidW(sid, text) == 0) return null;
+        try {
+          return DesktopUser(text.value.toDartString(), session);
+        } finally {
+          _LocalFree(text.value.cast());
+        }
+      } finally {
+        _CloseHandle(token.value);
+      }
+    } finally {
+      _CloseHandle(process);
+    }
+  });
+}
+
 /// Открывает ссылку от имени обычного пользователя, хотя лаунчер работает с правами
 /// администратора: rundll32 url.dll,FileProtocolHandler (тот же ShellExecute)
 /// запускается с токеном рабочего стола — процесса explorer.exe. Иначе программа,
 /// открытая по ссылке (Telegram), получила бы права администратора тоже.
 /// false — не вышло: нет рабочего стола или выключена служба «Вторичный вход в систему».
 bool shellExecuteAsUser(String link) {
+  final root = Platform.environment['SystemRoot'] ?? r'C:\Windows';
+  final exe = '$root\\System32\\rundll32.exe';
+  return _startAsDesktopUser(exe, '"$exe" url.dll,FileProtocolHandler $link');
+}
+
+/// Запускает [exe] с параметрами [parameters] от имени обычного пользователя —
+/// как [shellExecuteAsUser]. Без прав администратора или если так не вышло —
+/// через ShellExecute, лишь бы запустилось.
+bool startAsUser(String exe, String parameters, {required bool elevated}) =>
+    (elevated &&
+        _startAsDesktopUser(
+          exe,
+          '"$exe" $parameters',
+          directory: File(exe).parent.path,
+        )) ||
+    shellExecute(exe, parameters: parameters, directory: File(exe).parent.path);
+
+/// [exe] с командной строкой [commandLine] и токеном рабочего стола.
+bool _startAsDesktopUser(
+  String exe,
+  String commandLine, {
+  String? directory,
+}) {
   return using((arena) {
-    final shell = _GetShellWindow();
-    if (shell == 0) return false;
-    final pid = arena<Uint32>();
-    _GetWindowThreadProcessId(shell, pid);
-    if (pid.value == 0) return false;
-    final process = _OpenProcess(_PROCESS_QUERY_INFORMATION, 0, pid.value);
+    final pid = _shellProcessId(arena);
+    if (pid == 0) return false;
+    final process = _OpenProcess(_PROCESS_QUERY_INFORMATION, 0, pid);
     if (process == 0) return false;
     final token = arena<IntPtr>();
     final primary = arena<IntPtr>();
@@ -751,20 +864,16 @@ bool shellExecuteAsUser(String link) {
       _CloseHandle(token.value);
       if (duplicated == 0) return false;
       try {
-        final root = Platform.environment['SystemRoot'] ?? r'C:\Windows';
-        final exe = '$root\\System32\\rundll32.exe';
         final info = arena<STARTUPINFOW>()..ref.cb = sizeOf<STARTUPINFOW>();
         final started = arena<PROCESS_INFORMATION>();
         final ok = _CreateProcessWithTokenW(
           primary.value,
           0,
           exe.toNativeUtf16(allocator: arena),
-          '"$exe" url.dll,FileProtocolHandler $link'.toNativeUtf16(
-            allocator: arena,
-          ),
+          commandLine.toNativeUtf16(allocator: arena),
           0,
           nullptr,
-          nullptr,
+          directory?.toNativeUtf16(allocator: arena) ?? nullptr,
           info,
           started,
         );
@@ -1062,13 +1171,27 @@ void deleteService(String name) {
 
 // ── Реестр ──────────────────────────────────────────────────────────────────
 
-/// Строка из HKLM (или HKCU, если [currentUser]). null — значения нет.
+/// Раздел реестра верхнего уровня.
+enum RegistryHive {
+  localMachine(_HKEY_LOCAL_MACHINE),
+  currentUser(_HKEY_CURRENT_USER),
+  users(_HKEY_USERS);
+
+  const RegistryHive(this._handle);
+
+  final int _handle;
+}
+
+/// Строка из HKLM (или HKCU, если [currentUser]; или из [hive]).
+/// Пустое [valueName] — значение по умолчанию. null — значения нет.
 String? readRegistryString(
   String subKey,
   String valueName, {
   bool currentUser = false,
+  RegistryHive? hive,
 }) {
-  final root = currentUser ? _HKEY_CURRENT_USER : _HKEY_LOCAL_MACHINE;
+  final root =
+      hive?._handle ?? (currentUser ? _HKEY_CURRENT_USER : _HKEY_LOCAL_MACHINE);
   return using((arena) {
     final size = arena<Uint32>()..value = 0;
     final key = subKey.toNativeUtf16(allocator: arena);
@@ -1118,12 +1241,15 @@ int? readRegistryDword(
   });
 }
 
-/// Имена подразделов ключа HKLM. Пустой список — ключа нет.
-List<String> registrySubkeys(String subKey) {
+/// Имена подразделов ключа HKLM (или [hive]). Пустой список — ключа нет.
+List<String> registrySubkeys(
+  String subKey, {
+  RegistryHive hive = RegistryHive.localMachine,
+}) {
   return using((arena) {
     final hkey = arena<IntPtr>();
     if (_RegOpenKeyExW(
-          _HKEY_LOCAL_MACHINE,
+          hive._handle,
           subKey.toNativeUtf16(allocator: arena),
           0,
           _KEY_READ,

@@ -14,11 +14,13 @@ class FeedbackTelegram {
     bool Function()? hasApp,
   }) : channel = _normalize(channel ?? AppInfo.feedbackTelegram),
        _open = open ?? _shellOpen,
+       _openApp = open ?? const TelegramDesktop().open,
        _hasApp = hasApp ?? (() => const TelegramDesktop().installed);
 
   /// Публичное имя канала без «@»; пустое — не настроено.
   final String channel;
   final bool Function(String link, {required bool elevated}) _open;
+  final bool Function(String link, {required bool elevated}) _openApp;
   final bool Function() _hasApp;
 
   bool get configured => channel.isNotEmpty;
@@ -67,7 +69,7 @@ class FeedbackTelegram {
         'Отправка обращений в этой сборке не настроена.',
       );
     }
-    if (_hasApp() && _open(appLink, elevated: elevated)) return true;
+    if (_hasApp() && _openApp(appLink, elevated: elevated)) return true;
     return _open(webLink, elevated: elevated);
   }
 

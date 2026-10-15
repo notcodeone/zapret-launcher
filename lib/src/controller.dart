@@ -1640,7 +1640,8 @@ class AppController extends ChangeNotifier {
 
   /// Открывает ссылку в Telegram Desktop — он спросит, подключить ли прокси.
   /// От имени обычного пользователя: иначе Telegram получил бы права лаунчера.
-  void openTelegramLink() =>
+  /// false — Windows не открыла.
+  bool openTelegramLink() =>
       _telegramDesktop.open(telegramLink, elevated: _elevated);
 
   // ── Обновления лаунчера ──
