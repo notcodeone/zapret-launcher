@@ -71,6 +71,13 @@ void main() {
       expect(parts, whole);
     });
 
+    test('самопроверка CNG: в Windows проходит, в других системах — Dart', () {
+      expect(AesCtr.cngWorks, Platform.isWindows);
+      final aes = AesCtr(Uint8List(32), Uint8List(16));
+      expect(aes is DartAesCtr, !Platform.isWindows);
+      aes.dispose();
+    });
+
     test('CNG и Dart совпадают', () {
       final r = Random(3);
       final key = randomBytes(32, r);

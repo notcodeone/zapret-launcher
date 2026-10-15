@@ -7,13 +7,77 @@ import '../platform/bcrypt.dart' as bcrypt;
 /// одно и то же: поток XOR-ится с гаммой, поэтому один метод на оба направления.
 abstract interface class AesCtr {
   /// Без [native] — на чистом Dart. По умолчанию в Windows — через CNG
-  /// (аппаратный AES), если он доступен.
+  /// (аппаратный AES), если он доступен и прошёл проверку [cngWorks].
   factory AesCtr(Uint8List key, Uint8List iv, {bool? native}) {
-    if (native ?? Platform.isWindows) {
+    if ((native ?? Platform.isWindows) && cngWorks) {
       final cng = bcrypt.CngAesCtr.tryCreate(key, iv);
       if (cng != null) return cng;
     }
     return DartAesCtr(key, iv);
+  }
+
+  /// CNG доступен и шифрует так же, как эталон: сверяется один раз на изолят —
+  /// с вектором NIST SP 800-38A и с реализацией на Dart на кусках разной длины.
+  /// Любое расхождение или ошибка — шифруем на Dart: неверная гамма сломала бы
+  /// каждое подключение Telegram, а Dart лишь медленнее.
+  static bool get cngWorks => _cngWorks ??= _checkCng();
+  static bool? _cngWorks;
+
+  static bool _checkCng() {
+    AesCtr? cng;
+    try {
+      final key = Uint8List.fromList(List.generate(32, (i) => i * 7 + 3));
+      final iv = Uint8List.fromList(List.generate(16, (i) => 0xf0 + i));
+      // Младшие байты счётчика у края — проверяется и перенос.
+      iv.fillRange(12, 16, 0xff);
+      cng = bcrypt.CngAesCtr.tryCreate(key, iv);
+      if (cng == null) return false;
+      final dart = DartAesCtr(key, iv);
+      final data = Uint8List.fromList(List.generate(4099, (i) => i * 31));
+      var i = 0;
+      for (final n in const [1, 5, 16, 17, 60, 1000, 3000]) {
+        final end = i + n < data.length ? i + n : data.length;
+        final chunk = Uint8List.sublistView(data, i, end);
+        final a = cng.process(chunk);
+        final b = dart.process(chunk);
+        for (var j = 0; j < a.length; j++) {
+          if (a[j] != b[j]) return false;
+        }
+        i = end;
+      }
+      return _nistVector();
+    } on Object {
+      return false;
+    } finally {
+      cng?.dispose();
+    }
+  }
+
+  /// NIST SP 800-38A F.5.5 (CTR-AES256), первые два блока — через CNG.
+  static bool _nistVector() {
+    Uint8List hex(String s) => Uint8List.fromList([
+      for (var i = 0; i < s.length; i += 2)
+        int.parse(s.substring(i, i + 2), radix: 16),
+    ]);
+    final cng = bcrypt.CngAesCtr.tryCreate(
+      hex('603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4'),
+      hex('f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff'),
+    );
+    if (cng == null) return false;
+    try {
+      final out = cng.process(
+        hex('6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e51'),
+      );
+      final want = hex(
+        '601ec313775789a5b7a7f504bbf3d228f443e3ca4d62b59aca84e990cacaf5c5',
+      );
+      for (var j = 0; j < want.length; j++) {
+        if (out[j] != want[j]) return false;
+      }
+      return true;
+    } finally {
+      cng.dispose();
+    }
   }
 
   /// Следующий кусок потока: возвращает новый буфер той же длины.

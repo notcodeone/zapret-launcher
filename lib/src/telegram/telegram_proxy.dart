@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'aes_ctr.dart';
 import 'cloudflare.dart';
 import 'proxy_server.dart';
 import 'upstream.dart';
@@ -217,6 +218,14 @@ Future<void> _runProxy(
       e.osError?.message ?? e.message,
     ]);
     Isolate.exit();
+  }
+
+  if (Platform.isWindows) {
+    log(
+      AesCtr.cngWorks
+          ? 'Шифрование: аппаратный AES (Windows CNG)'
+          : 'Шифрование: AES на Dart — CNG недоступен или не прошёл проверку',
+    );
   }
 
   // Порт открыт — теперь домены: из кэша сразу, свежие — в фоне.
